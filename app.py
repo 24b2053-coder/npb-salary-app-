@@ -523,9 +523,19 @@ if data_loaded:
                             feature_list.append(player_stats[col])
                     features = np.array([feature_list])
 
-                    
-                    ✅ モデルが期待する特徴量数: 23
-                    ✅ features の shape: (1, 23)
+                    # 予測（対数変換版）
+if st.session_state.best_model_name == '線形回帰':
+    features_scaled = st.session_state.scaler.transform(features)
+    # 💡 ここで確認
+    st.write("✅ モデルが期待する特徴量数:", st.session_state.best_model.n_features_in_)
+    st.write("✅ features の shape:", features_scaled.shape)
+    predicted_salary_log = st.session_state.best_model.predict(features_scaled)[0]
+else:
+    # 💡 ここで確認
+    st.write("✅ モデルが期待する特徴量数:", st.session_state.best_model.n_features_in_)
+    st.write("✅ features の shape:", features.shape)
+    predicted_salary_log = st.session_state.best_model.predict(features)[0]
+
 
                     
                     predicted_salary = np.expm1(predicted_salary_log)
