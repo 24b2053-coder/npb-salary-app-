@@ -535,10 +535,6 @@ else:
     st.write("✅ モデルが期待する特徴量数:", st.session_state.best_model.n_features_in_)
     st.write("✅ features の shape:", features.shape)
     predicted_salary_log = st.session_state.best_model.predict(features)[0]
-
-
-                    
-                    predicted_salary = np.expm1(predicted_salary_log)
                     
                     # 前年の年俸を取得
                     previous_salary_data = st.session_state.salary_long[
@@ -1490,6 +1486,7 @@ else:
 # フッター
 st.markdown("---")
 st.markdown("*NPB選手年俸予測システム（対数変換版 + 減額制限対応 + 年齢考慮） - Powered by Streamlit*")
+
 
 
 
