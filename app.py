@@ -854,17 +854,17 @@ if data_loaded:
                 else:
                     player_stats = player_stats.iloc[0]
                     
-                    # 23個の特徴量を正しい順で揃える（年齢がなくてもOK）
-                        feature_list = []
-                        for col in st.session_state.feature_cols:
-                            if col == "年齢":
-                                if "年齢" in player_stats.index and pd.notna(player_stats["年齢"]):
-                                    feature_list.append(player_stats["年齢"])
-                                else:
-                                    feature_list.append(28)  # 年齢がない場合はデフォルトで28歳
+                    #23個の特徴量を正しい順で揃える（年齢がなくてもOK）
+                    feature_list = []
+                    for col in st.session_state.feature_cols:
+                        if col == "年齢":
+                            if "年齢" in player_stats.index and pd.notna(player_stats["年齢"]):
+                                feature_list.append(player_stats["年齢"])
                             else:
-                                feature_list.append(player_stats[col])
-                        features = np.array([feature_list])
+                                feature_list.append(28)  # 年齢がない場合はデフォルトで28歳
+                        else:
+                            feature_list.append(player_stats[col])
+                    features = np.array([feature_list])
                     
                     # 前年の年俸と実際の年俸を取得
                     previous_salary_data = st.session_state.salary_long[
@@ -1483,6 +1483,7 @@ else:
 # フッター
 st.markdown("---")
 st.markdown("*NPB選手年俸予測システム（対数変換版 + 減額制限対応 + 年齢考慮） - Powered by Streamlit*")
+
 
 
 
