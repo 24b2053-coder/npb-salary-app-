@@ -524,12 +524,9 @@ if data_loaded:
                     features = np.array([feature_list])
 
                     
-                    # 予測（対数変換版）
-                    if st.session_state.best_model_name == '線形回帰':
-                        features_scaled = st.session_state.scaler.transform(features)
-                        predicted_salary_log = st.session_state.best_model.predict(features_scaled)[0]
-                    else:
-                        predicted_salary_log = st.session_state.best_model.predict(features)[0]
+                    ✅ モデルが期待する特徴量数: 23
+                    ✅ features の shape: (1, 23)
+
                     
                     predicted_salary = np.expm1(predicted_salary_log)
                     
@@ -1483,6 +1480,7 @@ else:
 # フッター
 st.markdown("---")
 st.markdown("*NPB選手年俸予測システム（対数変換版 + 減額制限対応 + 年齢考慮） - Powered by Streamlit*")
+
 
 
 
