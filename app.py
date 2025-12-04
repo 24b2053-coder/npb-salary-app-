@@ -300,7 +300,13 @@ def prepare_data(_salary_df, _stats_2023, _stats_2024, _stats_2025, _titles_df, 
     stats_all = pd.concat([stats_2023_copy, stats_2024_copy, stats_2025_copy], ignore_index=True)
     
     # 年齢データをマージ
-    stats_all = pd.merge(stats_all, _ages_df, on=['選手名', '年度'], how='left')
+    stats_all = pd.merge(stats_all, _ages_df, on='選手名', how='left')
+
+    if '年齢' in stats_all.columns:
+        stats_all['年齢'] = stats_all['年齢'].fillna(28)
+    else:
+        stats_all['年齢'] = 28
+
     
     df_2023 = _salary_df[['選手名_2023', '年俸_円_2023']].copy()
     df_2023['年度'] = 2023
@@ -346,15 +352,17 @@ def train_models(_merged_df):
                    '塁打', '打点', '盗塁', '盗塁刺', '四球', '死球', '三振', '併殺打', 
                    '打率', '出塁率', '長打率', '犠打', '犠飛', 'タイトル数']
     
-    # 年齢列が存在する場合は特徴量に追加
+    
+    # 年齢があれば追加
     if '年齢' in _merged_df.columns:
         feature_cols.append('年齢')
         ml_df = _merged_df[feature_cols + ['年俸_円', '選手名', '成績年度']].copy()
     else:
-        # 年齢データがない場合は平均年齢（28歳）で補完
         ml_df = _merged_df[feature_cols + ['年俸_円', '選手名', '成績年度']].copy()
-        ml_df['年齢'] = 28  # デフォルト年齢
+        ml_df['年齢'] = 28
         feature_cols.append('年齢')
+
+    st.session_state.feature_cols = feature_cols
     
     ml_df = ml_df.dropna()
     
@@ -1482,6 +1490,7 @@ else:
 # フッター
 st.markdown("---")
 st.markdown("*NPB選手年俸予測システム（対数変換版 + 減額制限対応 + 年齢考慮） - Powered by Streamlit*")
+
 
 
 
