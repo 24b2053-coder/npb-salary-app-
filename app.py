@@ -342,7 +342,7 @@ def prepare_data(_salary_df, _stats_2023, _stats_2024, _stats_2025, _titles_df, 
 @st.cache_resource
 def train_models(_merged_df):
     """モデルを訓練する（対数変換適用・年齢を特徴量に追加）"""
-        feature_cols = list(dict.fromkeys(['試合', '打席', '打数', '得点', '安打', '二塁打', '三塁打', '本塁打', 
+    feature_cols = list(dict.fromkeys(['試合', '打席', '打数', '得点', '安打', '二塁打', '三塁打', '本塁打', 
                    '塁打', '打点', '盗塁', '盗塁刺', '四球', '死球', '三振', '併殺打', 
                    '打率', '出塁率', '長打率', '犠打', '犠飛', 'タイトル数', '年齢']
     
@@ -1492,6 +1492,7 @@ else:
 # フッター
 st.markdown("---")
 st.markdown("*NPB選手年俸予測システム（対数変換版 + 減額制限対応 + 年齢考慮） - Powered by Streamlit*")
+
 
 
 
