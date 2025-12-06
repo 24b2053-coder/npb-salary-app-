@@ -820,17 +820,17 @@ if data_loaded:
                 st.success("✅ 予測完了！")
                     
                 # 減額制限チェック
-                    if previous_salary is not None:
-                        is_limited, min_salary, reduction_rate = check_salary_reduction_limit(predicted_salary, previous_salary)
-                        
-                        if is_limited:
-                            st.warning(f"""
-                            ⚖️ **減額制限に引っかかります**
-                            - 前年年俸: {previous_salary/1e6:.1f}百万円
-                            - 予測年俸: {predicted_salary/1e6:.1f}百万円
-                            - 減額制限: {reduction_rate*100:.0f}%まで（最低{(1-reduction_rate)*100:.0f}%保証）
-                            - **制限後の最低年俸: {min_salary/1e6:.1f}百万円**
-                            """)
+                if previous_salary is not None:
+                    is_limited, min_salary, reduction_rate = check_salary_reduction_limit(predicted_salary, previous_salary)
+                    
+                    if is_limited:
+                        st.warning(f"""
+                        ⚖️ **減額制限に引っかかります**
+                        - 前年年俸: {previous_salary/1e6:.1f}百万円
+                        - 予測年俸: {predicted_salary/1e6:.1f}百万円
+                        - 減額制限: {reduction_rate*100:.0f}%まで（最低{(1-reduction_rate)*100:.0f}%保証）
+                        - **制限後の最低年俸: {min_salary/1e6:.1f}百万円**
+                        """)
                             display_salary = min_salary
                         else:
                             display_salary = predicted_salary
@@ -1754,6 +1754,7 @@ else:
 # フッター
 st.markdown("---")
 st.markdown("*NPB選手年俸予測システム（対数変換版 + 減額制限対応 + 年齢考慮） - Powered by Streamlit*")
+
 
 
 
