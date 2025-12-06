@@ -831,46 +831,46 @@ if data_loaded:
                         - 減額制限: {reduction_rate*100:.0f}%まで（最低{(1-reduction_rate)*100:.0f}%保証）
                         - **制限後の最低年俸: {min_salary/1e6:.1f}百万円**
                         """)
-                            display_salary = min_salary
-                        else:
-                            display_salary = predicted_salary
+                        display_salary = min_salary
                     else:
                         display_salary = predicted_salary
+                else:
+                    display_salary = predicted_salary
                     
-                    col1, col2, col3, col4 = st.columns(4)
-                    with col1:
-                        if previous_salary is not None:
-                            st.metric("前年年俸", f"{previous_salary/1e6:.1f}百万円")
-                        else:
-                            st.metric("前年年俸", "データなし")
-                    with col2:
-                        st.metric("予測年俸", f"{predicted_salary/1e6:.1f}百万円")
-                    with col3:
-                        if actual_salary:
-                            st.metric("実際の年俸", f"{actual_salary/1e6:.1f}百万円")
-                        else:
-                            st.metric("実際の年俸", "データなし")
-                    with col4:
-                        if actual_salary:
-                            error = abs(display_salary - actual_salary) / actual_salary * 100
-                            st.metric("予測誤差", f"{error:.1f}%")
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    if previous_salary is not None:
+                        st.metric("前年年俸", f"{previous_salary/1e6:.1f}百万円")
+                    else:
+                        st.metric("前年年俸", "データなし")
+                with col2:
+                    st.metric("予測年俸", f"{predicted_salary/1e6:.1f}百万円")
+                with col3:
+                    if actual_salary:
+                        st.metric("実際の年俸", f"{actual_salary/1e6:.1f}百万円")
+                    else:
+                        st.metric("実際の年俸", "データなし")
+                with col4:
+                    if actual_salary:
+                        error = abs(display_salary - actual_salary) / actual_salary * 100
+                        st.metric("予測誤差", f"{error:.1f}%")
                     
-                    st.markdown("---")
-                    st.subheader(f"{stats_year}年の成績")
+                st.markdown("---")
+                st.subheader(f"{stats_year}年の成績")
                     
-                    col1, col2, col3, col4 = st.columns(4)
-                    with col1:
-                        st.metric("試合", int(player_stats['試合']))
-                        st.metric("打率", f"{player_stats['打率']:.3f}")
-                    with col2:
-                        st.metric("安打", int(player_stats['安打']))
-                        st.metric("出塁率", f"{player_stats['出塁率']:.3f}")
-                    with col3:
-                        st.metric("本塁打", int(player_stats['本塁打']))
-                        st.metric("長打率", f"{player_stats['長打率']:.3f}")
-                    with col4:
-                        st.metric("打点", int(player_stats['打点']))
-                        st.metric("年齢", int(player_stats['年齢']) if pd.notna(player_stats['年齢']) else 'N/A')
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("試合", int(player_stats['試合']))
+                    st.metric("打率", f"{player_stats['打率']:.3f}")
+                with col2:
+                    st.metric("安打", int(player_stats['安打']))
+                    st.metric("出塁率", f"{player_stats['出塁率']:.3f}")
+                with col3:
+                    st.metric("本塁打", int(player_stats['本塁打']))
+                    st.metric("長打率", f"{player_stats['長打率']:.3f}")
+                with col4:
+                    st.metric("打点", int(player_stats['打点']))
+                    st.metric("年齢", int(player_stats['年齢']) if pd.notna(player_stats['年齢']) else 'N/A')
                     
                     st.markdown("---")
                     col1, col2 = st.columns(2)
@@ -1754,6 +1754,7 @@ else:
 # フッター
 st.markdown("---")
 st.markdown("*NPB選手年俸予測システム（対数変換版 + 減額制限対応 + 年齢考慮） - Powered by Streamlit*")
+
 
 
 
