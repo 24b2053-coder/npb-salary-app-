@@ -810,12 +810,12 @@ if data_loaded:
                 ]
                 previous_salary = previous_salary_data['年俸_円'].values[0] if not previous_salary_data.empty else None
                     
-                    # 実際の年俸を取得
-                    actual_salary_data = st.session_state.salary_long[
-                        (st.session_state.salary_long['選手名'] == selected_player) &
-                        (st.session_state.salary_long['年度'] == predict_year)
-                    ]
-                    actual_salary = actual_salary_data['年俸_円'].values[0] if not actual_salary_data.empty else None
+                # 実際の年俸を取得
+                actual_salary_data = st.session_state.salary_long[
+                    (st.session_state.salary_long['選手名'] == selected_player) &
+                    (st.session_state.salary_long['年度'] == predict_year)
+                ]
+                actual_salary = actual_salary_data['年俸_円'].values[0] if not actual_salary_data.empty else None
                     
                     st.success("✅ 予測完了！")
                     
@@ -1754,6 +1754,7 @@ else:
 # フッター
 st.markdown("---")
 st.markdown("*NPB選手年俸予測システム（対数変換版 + 減額制限対応 + 年齢考慮） - Powered by Streamlit*")
+
 
 
 
