@@ -682,7 +682,7 @@ if data_loaded:
         with st.spinner('🤖 モデルを訓練中...'):
             merged_df, stats_all_with_titles, salary_long = prepare_data(
                 salary_df, stats_2023, stats_2024, stats_2025, titles_df, ages_df
-
+            )
                 tier_models, tier_results, ml_df, feature_cols = train_tiered_models_advanced(
                     merged_df, salary_long
                 )
@@ -1755,6 +1755,7 @@ else:
 # フッター
 st.markdown("---")
 st.markdown("*NPB選手年俸予測システム（対数変換版 + 減額制限対応 + 年齢考慮） - Powered by Streamlit*")
+
 
 
 
