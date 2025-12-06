@@ -721,7 +721,8 @@ if data_loaded:
         st.markdown("""
         1. **左サイドバー**のメニューから機能を選択
         2. **選手名**を入力して年俸を予測
-
+        """)
+        
         st.markdown("---")
         st.subheader("🎯 5階層の内訳")
         st.markdown("""
@@ -1755,6 +1756,7 @@ else:
 # フッター
 st.markdown("---")
 st.markdown("*NPB選手年俸予測システム（対数変換版 + 減額制限対応 + 年齢考慮） - Powered by Streamlit*")
+
 
 
 
