@@ -598,7 +598,7 @@ def train_models_improved(_merged_df):
 if data_loaded:
     if not st.session_state.model_trained:
         with st.spinner('🤖 モデルを訓練中...'):
-            merged_df, stats_all_with_titles, salary_long = prepare_data(
+            merged_df, stats_all_with_titles, salary_long = prepare_data_improved(
                 salary_df, stats_2023, stats_2024, stats_2025, titles_df
             )
             
@@ -1711,6 +1711,7 @@ st.markdown("*NPB選手年俸予測システム - made by Sato&Kurokawa - Powere
 # Streamlitアプリを再起動するか、以下のコマンドを実行
 st.cache_data.clear()
 st.cache_resource.clear()
+
 
 
 
