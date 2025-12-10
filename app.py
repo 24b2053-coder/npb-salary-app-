@@ -602,7 +602,7 @@ if data_loaded:
                 salary_df, stats_2023, stats_2024, stats_2025, titles_df
             )
             
-            best_model, best_model_name, scaler, feature_cols, results, ml_df = train_models(merged_df)
+            best_model, best_model_name, scaler, feature_cols, results, ml_df = train_models_improved(merged_df)
             
             st.session_state.model_trained = True
             st.session_state.best_model = best_model
@@ -1711,6 +1711,7 @@ st.markdown("*NPB選手年俸予測システム - made by Sato&Kurokawa - Powere
 # Streamlitアプリを再起動するか、以下のコマンドを実行
 st.cache_data.clear()
 st.cache_resource.clear()
+
 
 
 
