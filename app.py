@@ -341,11 +341,14 @@ if not data_loaded:
         st.sidebar.warning(f"⚠️ {len(uploaded_files)}個のファイルが選択されています。5つ必要です。")
 
 # データ前処理関数
+# ========================================
+# 修正版：prepare_data_improved関数
+# ========================================
+
 @st.cache_data
 def prepare_data_improved(_salary_df, _stats_2023, _stats_2024, _stats_2025, _titles_df):
-    """データの前処理を行う（時系列特徴量追加版）"""
+    """データの前処理を行う（時系列特徴量追加版・修正）"""
     
-    # [既存の処理は同じ...]
     titles_df_clean = _titles_df.dropna(subset=['選手名'])
     title_summary = titles_df_clean.groupby(['選手名', '年度']).size().reset_index(name='タイトル数')
     
@@ -358,9 +361,9 @@ def prepare_data_improved(_salary_df, _stats_2023, _stats_2024, _stats_2025, _ti
     stats_2025_copy['年度'] = 2025
     
     stats_all = pd.concat([stats_2023_copy, stats_2024_copy, stats_2025_copy], ignore_index=True)
-
-     # ========================================
-    # 🆕 追加：前年比の計算
+    
+    # ========================================
+    # 前年比の計算
     # ========================================
     stats_all = stats_all.sort_values(['選手名', '年度'])
     
@@ -370,8 +373,12 @@ def prepare_data_improved(_salary_df, _stats_2023, _stats_2024, _stats_2025, _ti
     stats_prev = stats_prev.add_suffix('_前年')
     stats_prev.rename(columns={'選手名_前年': '選手名', '年度_前年': '年度'}, inplace=True)
     
-    stats_all = pd.merge(stats_all, stats_prev[['選手名', '年度', '打率_前年', '本塁打_前年', '打点_前年']], 
-                         on=['選手名', '年度'], how='left')
+    stats_all = pd.merge(
+        stats_all, 
+        stats_prev[['選手名', '年度', '打率_前年', '本塁打_前年', '打点_前年']], 
+        on=['選手名', '年度'], 
+        how='left'
+    )
     
     # 前年比特徴量を作成
     stats_all['打率_前年比'] = (stats_all['打率'] - stats_all['打率_前年']).fillna(0)
@@ -379,7 +386,7 @@ def prepare_data_improved(_salary_df, _stats_2023, _stats_2024, _stats_2025, _ti
     stats_all['打点_前年比'] = (stats_all['打点'] - stats_all['打点_前年']).fillna(0)
     
     # ========================================
-    # 🆕 追加：過去3年の移動平均
+    # 過去3年の移動平均
     # ========================================
     for col in ['打率', '本塁打', '打点']:
         stats_all[f'{col}_3年平均'] = stats_all.groupby('選手名')[col].transform(
@@ -387,16 +394,20 @@ def prepare_data_improved(_salary_df, _stats_2023, _stats_2024, _stats_2025, _ti
         )
     
     # ========================================
-    # 🆕 追加：年齢区分（キャリアステージ）
+    # 年齢区分（キャリアステージ）
     # ========================================
     if '年齢' in stats_all.columns:
-        stats_all['年齢区分'] = pd.cut(stats_all['年齢'], 
-                                        bins=[0, 25, 30, 35, 100], 
-                                        labels=[0, 1, 2, 3])  # 若手/中堅/ベテラン/大ベテラン
-        stats_all['年齢区分'] = stats_all['年齢区分'].astype(int)
+        stats_all['年齢区分'] = pd.cut(
+            stats_all['年齢'], 
+            bins=[0, 25, 30, 35, 100], 
+            labels=[0, 1, 2, 3]
+        )
+        stats_all['年齢区分'] = stats_all['年齢区分'].astype(float).fillna(1).astype(int)
     else:
-        stats_all['年齢区分'] = 1  # デフォルト：中堅
+        stats_all['年齢'] = 28
+        stats_all['年齢区分'] = 1
     
+    # 年俸データの整形
     df_2023 = _salary_df[['選手名_2023', '年俸_円_2023']].copy()
     df_2023['年度'] = 2023
     df_2023.rename(columns={'選手名_2023': '選手名', '年俸_円_2023': '年俸_円'}, inplace=True)
@@ -414,25 +425,39 @@ def prepare_data_improved(_salary_df, _stats_2023, _stats_2024, _stats_2025, _ti
     salary_long = salary_long[salary_long['年俸_円'] > 0]
     salary_long = salary_long.sort_values('年俸_円', ascending=False)
     salary_long = salary_long.drop_duplicates(subset=['選手名', '年度'], keep='first')
-
+    
     # ========================================
-    # 🆕 追加：前年年俸を特徴量に追加
+    # 前年年俸を特徴量に追加
     # ========================================
     salary_prev = salary_long.copy()
     salary_prev['年度'] = salary_prev['年度'] + 1
     salary_prev.rename(columns={'年俸_円': '前年年俸_円'}, inplace=True)
     
+    # stats_allに前年年俸をマージ
+    stats_all = pd.merge(
+        stats_all, 
+        salary_prev[['選手名', '年度', '前年年俸_円']], 
+        on=['選手名', '年度'], 
+        how='left'
+    )
+    
+    # 前年年俸を対数変換（欠損値は現在の平均年俸の80%で補完）
+    avg_salary = salary_long['年俸_円'].mean()
+    stats_all['前年年俸_対数'] = np.log1p(stats_all['前年年俸_円'].fillna(avg_salary * 0.8))
+    
+    # ========================================
+    # タイトル数をマージ
+    # ========================================
+    stats_all = pd.merge(stats_all, title_summary, on=['選手名', '年度'], how='left')
+    stats_all['タイトル数'] = stats_all['タイトル数'].fillna(0)
+    
+    # ========================================
+    # 訓練用データの作成（予測年度の年俸とマージ）
+    # ========================================
     stats_all['予測年度'] = stats_all['年度'] + 1
     
-    merged_df = pd.merge(stats_all, title_summary, on=['選手名', '年度'], how='left')
-    merged_df['タイトル数'] = merged_df['タイトル数'].fillna(0)
-    
-    # 前年年俸をマージ
-    merged_df = pd.merge(merged_df, salary_prev[['選手名', '年度', '前年年俸_円']], 
-                         left_on=['選手名', '年度'], right_on=['選手名', '年度'], how='left')
-    
     merged_df = pd.merge(
-        merged_df,
+        stats_all,
         salary_long,
         left_on=['選手名', '予測年度'],
         right_on=['選手名', '年度'],
@@ -442,73 +467,33 @@ def prepare_data_improved(_salary_df, _stats_2023, _stats_2024, _stats_2025, _ti
     merged_df = merged_df.drop(columns=['年度_年俸', '予測年度'])
     merged_df.rename(columns={'年度_成績': '成績年度'}, inplace=True)
     
-    # 前年年俸を対数変換
-    merged_df['前年年俸_対数'] = np.log1p(merged_df['前年年俸_円'].fillna(merged_df['年俸_円'] * 0.8))
-    
-    stats_all_with_titles = pd.merge(stats_all, title_summary, on=['選手名', '年度'], how='left')
-    stats_all_with_titles['タイトル数'] = stats_all_with_titles['タイトル数'].fillna(0)
-    
-    return merged_df, stats_all_with_titles, salary_long
-    
-    stats_all['予測年度'] = stats_all['年度'] + 1
-    merged_df = pd.merge(stats_all, title_summary, on=['選手名', '年度'], how='left')
-    merged_df['タイトル数'] = merged_df['タイトル数'].fillna(0)
-    
-    # ★ 年齢データを保存 ★
-    if '年齢' in merged_df.columns:
-        age_backup = merged_df[['選手名', '年度', '年齢']].copy()
-    
-    merged_df = pd.merge(
-        merged_df,
-        salary_long,
-        left_on=['選手名', '予測年度'],
-        right_on=['選手名', '年度'],
-        suffixes=('_成績', '_年俸')
-    )
-    
-    # ★ 年齢列が消えた場合は復元 ★
-    if '年齢' not in merged_df.columns and 'age_backup' in locals():
-        merged_df = pd.merge(
-            merged_df,
-            age_backup,
-            left_on=['選手名', '年度_成績'],
-            right_on=['選手名', '年度'],
-            how='left'
-        )
-        # 重複列を削除
-        if '年度_y' in merged_df.columns:
-            merged_df = merged_df.drop(columns=['年度_y'])
-        if '年度_x' in merged_df.columns:
-            merged_df = merged_df.rename(columns={'年度_x': '年度_成績'})
-    
-    merged_df = merged_df.drop(columns=['年度_年俸', '予測年度'])
-    merged_df.rename(columns={'年度_成績': '成績年度'}, inplace=True)
-    
-    stats_all_with_titles = pd.merge(stats_all, title_summary, on=['選手名', '年度'], how='left')
-    stats_all_with_titles['タイトル数'] = stats_all_with_titles['タイトル数'].fillna(0)
+    # ========================================
+    # 🔥 重要：stats_allをstats_all_with_titlesとして返す
+    # これにより予測時に新特徴量が使える
+    # ========================================
+    stats_all_with_titles = stats_all.copy()
     
     return merged_df, stats_all_with_titles, salary_long
 
-# モデル訓練関数（対数変換版・年齢追加）
+
+# ========================================
+# 修正版：train_models_improved関数
+# ========================================
+
 @st.cache_resource
 def train_models_improved(_merged_df):
     """モデルを訓練する（時系列特徴量追加版）"""
     
-    # 🆕 新しい特徴量を追加
+    # 新しい特徴量を追加
     feature_cols = [
         '試合', '打席', '打数', '得点', '安打', '二塁打', '三塁打', '本塁打', 
         '塁打', '打点', '盗塁', '盗塁刺', '四球', '死球', '三振', '併殺打', 
         '打率', '出塁率', '長打率', '犠打', '犠飛', 'タイトル数', '年齢',
-        # 🆕 追加特徴量
+        # 追加特徴量
         '打率_前年比', '本塁打_前年比', '打点_前年比',
         '打率_3年平均', '本塁打_3年平均', '打点_3年平均',
         '年齢区分', '前年年俸_対数'
     ]
-    
-    # 年齢がない場合の処理
-    if '年齢' not in _merged_df.columns:
-        _merged_df['年齢'] = 28
-        _merged_df['年齢区分'] = 1
     
     ml_df = _merged_df[feature_cols + ['年俸_円', '選手名', '成績年度']].copy()
     ml_df = ml_df.dropna()
@@ -517,11 +502,10 @@ def train_models_improved(_merged_df):
     y = ml_df['年俸_円']
     
     y_log = np.log1p(y)
-
+    
     # ========================================
-    # 🆕 時系列分割（重要！）
+    # 時系列分割（重要！）
     # ========================================
-    # 2025年のデータを検証用に分離
     train_mask = ml_df['成績年度'] < 2024
     test_mask = ml_df['成績年度'] >= 2024
     
@@ -537,34 +521,21 @@ def train_models_improved(_merged_df):
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
     
-    X_train, X_test, y_train_log, y_test_log = train_test_split(
-        X, y_log, test_size=0.2, random_state=42
-    )
-    
-    y_train_original = np.expm1(y_train_log)
-    y_test_original = np.expm1(y_test_log)
-    
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-    X_test_scaled = scaler.transform(X_test)
-    
-    # ========================================
-    # 🆕 ハイパーパラメータ調整
-    # ========================================
+    # ハイパーパラメータ調整
     models = {
         '線形回帰': LinearRegression(),
         'ランダムフォレスト': RandomForestRegressor(
-            n_estimators=200,  # 増量
+            n_estimators=200,
             random_state=42, 
-            max_depth=12,  # 深く
+            max_depth=12,
             min_samples_split=5,
             min_samples_leaf=2
         ),
         '勾配ブースティング': GradientBoostingRegressor(
-            n_estimators=200,  # 増量
+            n_estimators=200,
             random_state=42, 
-            max_depth=6,  # 深く
-            learning_rate=0.05,  # 学習率調整
+            max_depth=6,
+            learning_rate=0.05,
             subsample=0.8
         )
     }
@@ -1711,6 +1682,7 @@ st.markdown("*NPB選手年俸予測システム - made by Sato&Kurokawa - Powere
 # Streamlitアプリを再起動するか、以下のコマンドを実行
 st.cache_data.clear()
 st.cache_resource.clear()
+
 
 
 
