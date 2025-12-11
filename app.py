@@ -503,15 +503,39 @@ def train_models(_merged_df):
 
 # データ読み込みとモデル訓練
 if data_loaded:
+    # ★★★ ここに追加：サイドバー設定を先に定義 ★★★
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### ⚙️ モデル設定")
+    
+    use_stacking = st.sidebar.checkbox(
+        "🤖 AI自動最適化（スタッキング）",
+        value=False,
+        help="複数モデルを統合し、自動で最適な重みを学習（訓練時間: 約2分）",
+        key="use_stacking_checkbox"
+    )
+    
+    if st.sidebar.button("🔄 モデル再訓練", key="retrain_button"):
+        st.session_state.model_trained = False
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        st.rerun()
+    
+    st.sidebar.markdown("---")
+    # ★★★ ここまで追加 ★★★
+    
+    # モデル訓練処理
     if not st.session_state.model_trained:
         with st.spinner('🤖 モデルを訓練中...'):
             merged_df, stats_all_with_titles, salary_long = prepare_data(
                 salary_df, stats_2023, stats_2024, stats_2025, titles_df
             )
             
+            # use_stacking は上で定義済みなので使える
             if use_stacking:
+                # スタッキングモデルを使用
                 best_model, best_model_name, scaler, feature_cols, results, ml_df = train_stacking_model(merged_df)
             else:
+                # 従来のモデルを使用
                 best_model, best_model_name, scaler, feature_cols, results, ml_df = train_models(merged_df)
             
             st.session_state.model_trained = True
@@ -523,22 +547,6 @@ if data_loaded:
             st.session_state.salary_long = salary_long
             st.session_state.results = results
             st.session_state.ml_df = ml_df
-
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("### ⚙️ モデル設定")
-
-    use_stacking = st.sidebar.checkbox(
-    "🤖 AI自動最適化（スタッキング）",
-    value=False,
-    help="複数モデルを統合し、自動で最適な重みを学習（訓練時間: 約2分）",
-    key="use_stacking_checkbox"
-    )
-
-    if st.sidebar.button("🔄 モデル再訓練", key="retrain_button"):
-        st.session_state.model_trained = False
-        st.cache_data.clear()
-        st.cache_resource.clear()
-        st.rerun()
 
     st.sidebar.markdown("---")
     
@@ -1639,4 +1647,5 @@ st.markdown("*NPB選手年俸予測システム - made by Sato&Kurokawa - Powere
 # Streamlitアプリを再起動するか、以下のコマンドを実行
 st.cache_data.clear()
 st.cache_resource.clear()
+
 
