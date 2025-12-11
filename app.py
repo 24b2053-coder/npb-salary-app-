@@ -534,8 +534,9 @@ def train_ranged_models(_merged_df):
         '低年俸層（2000万円未満）': (0, 20_000_000),
         '中低年俸層（2000-4000万円）': (20_000_000, 40_000_000),
         '中年俸層（4000-7000万円）': (40_000_000, 70_000_000),
-        '高年俸層（7000万円-1億円）': (70_000_000, 100_000_000),
-        '超高年俸層（1億円以上）': (100_000_000, float('inf'))
+        '中高年俸層（7000万円-1億円）': (70_000_000, 100_000_000),
+        '高年俸層（1億円-4億円）': (100_000_000, 400_000_000),
+        '超高年俸層（4億円以上）': (400_000_000, float('inf'))
     }
     
     ranged_models = {}
@@ -1677,7 +1678,7 @@ if data_loaded:
         with col1:
             sort_column = st.selectbox(
                 "ソート項目",
-                ["誤差率", "誤差額", "予測年俸"],
+                ["誤差率", "誤差額", "予測年俸(万円)"],
                 key="rank_sort_column"
             )
         with col2:
@@ -1970,8 +1971,9 @@ if data_loaded:
         - **低年俸層**: 2000万円未満
         - **中低年俸層**: 2000万円以上4000万円未満
         - **中年俸層**: 4000万円以上7000万円未満
-        - **高年俸層**: 7000万円以上1億円未満
-        - **超高年俸層**: 1億円以上
+        - **中高年俸層**: 7000万円以上1億円未満
+        - **高年俸層**: 1億円以上4億未満
+        - **超高年俸層**: 4億円以上
         """)
         
         # モデル性能表示
@@ -2061,7 +2063,7 @@ if data_loaded:
                 
                 all_predictions.append({
                     'モデル': '統一モデル',
-                    '予測年俸': unified_display / 1e6,
+                    '予測年俸': unified_display / 10000,
                     '減額制限': 'あり' if unified_limited else 'なし'
                 })
                 
@@ -2081,7 +2083,7 @@ if data_loaded:
                     
                     all_predictions.append({
                         'モデル': range_name,
-                        '予測年俸': range_display / 1e6,
+                        '予測年俸': range_display / 10000,
                         '減額制限': 'あり' if range_limited else 'なし'
                     })
                 
@@ -2152,6 +2154,7 @@ st.markdown("*NPB選手年俸予測システム - made by Sato&Kurokawa - Powere
 # Streamlitアプリを再起動するか、以下のコマンドを実行
 st.cache_data.clear()
 st.cache_resource.clear()
+
 
 
 
