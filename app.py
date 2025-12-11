@@ -1754,7 +1754,7 @@ if data_loaded:
                         
                         st.markdown("---")
                         sort_label = f"{sort_column}（{'小→大' if ascending else '大→小'}）"
-                        st.subheader(f"📊 Top {top_n} ランキング ({rank_year}年) - {sort_label}")")
+                        st.subheader(f"📊 Top {top_n} ランキング ({rank_year}年) - {sort_label}")
                         
                         # データフレーム表示
                         df_display = df_top.copy()
@@ -1960,6 +1960,7 @@ st.markdown("*NPB選手年俸予測システム - made by Sato&Kurokawa - Powere
 # Streamlitアプリを再起動するか、以下のコマンドを実行
 st.cache_data.clear()
 st.cache_resource.clear()
+
 
 
 
