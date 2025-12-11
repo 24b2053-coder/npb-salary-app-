@@ -424,10 +424,14 @@ def prepare_data(_salary_df, _stats_2023, _stats_2024, _stats_2025, _titles_df):
     
     return merged_df, stats_all_with_titles, salary_long
 
+# train_stacking_model 関数を以下に置き換えてください
+
 @st.cache_resource
 def train_stacking_model(_merged_df):
     """
-    スタッキングで複数モデルを自動統合
+    改善版スタッキングモデル
+    - ハイパーパラメータを最適化
+    - シンプルな構成で過学習を防止
     """
     st.info("🤖 スタッキングアンサンブル学習を開始...")
     
@@ -461,33 +465,53 @@ def train_stacking_model(_merged_df):
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
     
-    # ベースモデル
+    # ★★★ 改善点1: ハイパーパラメータを最適化 ★★★
     st.markdown("### 📊 第1層：ベースモデル構築")
     
     base_models = [
         ('rf', RandomForestRegressor(
-            n_estimators=200, max_depth=15, min_samples_split=5,
-            random_state=42, n_jobs=-1
+            n_estimators=100,  # 200→100に減らして過学習防止
+            max_depth=10,      # 15→10に減らして過学習防止
+            min_samples_split=10,  # 5→10に増やして過学習防止
+            min_samples_leaf=4,     # 追加: 葉ノードの最小サンプル数
+            random_state=42,
+            n_jobs=-1
         )),
         ('gb', GradientBoostingRegressor(
-            n_estimators=200, max_depth=7, learning_rate=0.05,
+            n_estimators=100,  # 200→100に減らす
+            max_depth=5,       # 7→5に減らす
+            learning_rate=0.1,  # 0.05→0.1に増やす（少ないn_estimatorsで補償）
+            subsample=0.8,     # 追加: サブサンプリングで過学習防止
             random_state=42
         ))
     ]
     
+    # XGBoostとLightGBMも調整
     if XGBOOST_AVAILABLE:
         base_models.append(
             ('xgb', XGBRegressor(
-                n_estimators=200, max_depth=7, learning_rate=0.05,
-                random_state=42, n_jobs=-1, verbosity=0
+                n_estimators=100,   # 200→100
+                max_depth=5,        # 7→5
+                learning_rate=0.1,  # 0.05→0.1
+                subsample=0.8,      # 追加
+                colsample_bytree=0.8,  # 追加: 特徴量サブサンプリング
+                random_state=42,
+                n_jobs=-1,
+                verbosity=0
             ))
         )
     
     if LIGHTGBM_AVAILABLE:
         base_models.append(
             ('lgbm', LGBMRegressor(
-                n_estimators=200, max_depth=7, learning_rate=0.05,
-                random_state=42, n_jobs=-1, verbose=-1
+                n_estimators=100,
+                max_depth=5,
+                learning_rate=0.1,
+                subsample=0.8,
+                colsample_bytree=0.8,
+                random_state=42,
+                n_jobs=-1,
+                verbose=-1
             ))
         )
     
@@ -514,14 +538,14 @@ def train_stacking_model(_merged_df):
     
     st.dataframe(pd.DataFrame(base_results), use_container_width=True)
     
-    # メタモデル
+    # ★★★ 改善点2: メタモデルをシンプルに ★★★
     st.markdown("### 🧠 第2層：メタモデルで自動統合")
     st.info("各モデルの予測を統合し、最適な重みを自動学習します")
     
     stacking_model = StackingRegressor(
         estimators=trained_models,
-        final_estimator=Ridge(alpha=1.0),
-        cv=5,
+        final_estimator=Ridge(alpha=10.0),  # 1.0→10.0に増やして正則化を強化
+        cv=3,  # 5→3に減らして高速化（データが少ない場合に有効）
         n_jobs=-1
     )
     
@@ -543,6 +567,43 @@ def train_stacking_model(_merged_df):
     with col2:
         st.metric("スタッキング R²", f"{r2_stacking:.4f}")
     
+    # ★★★ 改善点3: ベースモデルとの比較を表示 ★★★
+    st.markdown("### 📊 ベースモデルとの性能比較")
+    
+    # 最良のベースモデルを見つける
+    best_base_r2 = max([float(r['R² スコア']) for r in base_results])
+    best_base_mae = min([float(r['MAE (百万円)']) for r in base_results])
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        improvement_r2 = ((r2_stacking - best_base_r2) / best_base_r2) * 100
+        st.metric(
+            "R² 改善率", 
+            f"{improvement_r2:+.2f}%",
+            delta=f"{r2_stacking - best_base_r2:.4f}"
+        )
+    with col2:
+        improvement_mae = ((best_base_mae - mae_stacking/1e6) / best_base_mae) * 100
+        st.metric(
+            "MAE 改善率", 
+            f"{improvement_mae:+.2f}%",
+            delta=f"{(best_base_mae - mae_stacking/1e6):.2f}百万円"
+        )
+    
+    # 改善されなかった場合の警告
+    if r2_stacking < best_base_r2:
+        st.warning(f"""
+        ⚠️ **スタッキングの効果が限定的です**
+        - スタッキング R²: {r2_stacking:.4f}
+        - 最良ベースモデル R²: {best_base_r2:.4f}
+        
+        **考えられる原因:**
+        - データ量が少なく、複雑なモデルが過学習している
+        - ベースモデルが既に十分に高精度
+        
+        **推奨:** 通常モードのモデルを使用することをお勧めします
+        """)
+    
     # 重み係数の可視化
     st.markdown("### 🎯 学習された重み係数")
     
@@ -563,6 +624,13 @@ def train_stacking_model(_merged_df):
     ax.axvline(x=0, color='black', linewidth=0.8)
     st.pyplot(fig)
     plt.close(fig)
+    
+    st.markdown("""
+    #### 📖 重み係数の解釈
+    - **正の値**: そのモデルの予測を重視
+    - **大きな絶対値**: スタッキングがそのモデルに大きく依存
+    - **小さな値**: あまり使われていない（他のモデルと相関が高い可能性）
+    """)
     
     # 結果を辞書形式で返す
     results = {
@@ -1792,6 +1860,7 @@ st.markdown("*NPB選手年俸予測システム - made by Sato&Kurokawa - Powere
 # Streamlitアプリを再起動するか、以下のコマンドを実行
 st.cache_data.clear()
 st.cache_resource.clear()
+
 
 
 
