@@ -319,8 +319,8 @@ st.markdown("---")
 if 'model_trained' not in st.session_state:
     st.session_state.model_trained = False
 # 年俸レンジ別モデルも訓練
-    ranged_models = train_ranged_models(merged_df)
-    st.session_state.ranged_models = ranged_models
+ranged_models = train_ranged_models(merged_df)
+st.session_state.ranged_models = ranged_models
 
 # データ読み込み処理
 @st.cache_data
@@ -2172,5 +2172,6 @@ st.markdown("*NPB選手年俸予測システム - made by Sato&Kurokawa - Powere
 # Streamlitアプリを再起動するか、以下のコマンドを実行
 st.cache_data.clear()
 st.cache_resource.clear()
+
 
 
