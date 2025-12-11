@@ -2090,44 +2090,44 @@ if data_loaded:
                     '減額制限': 'あり' if unified_limited else 'なし'
                 })
                 
-for range_name, model_info in st.session_state.ranged_models.items():
+        for range_name, model_info in st.session_state.ranged_models.items():
                     
-    # 年俸レンジのチェック
-    if range_name == "超高年俸層":
-        # 1億円以上の予測処理
-        if previous_salary >= 1e7:  # 1億円以上
-            range_features = player_stats[model_info['feature_cols']].values.reshape(1, -1)
-            range_pred_log = model_info['model'].predict(range_features)[0]
-            range_pred = np.expm1(range_pred_log)
-            range_pred = round(range_pred / 100000) * 100000
-            range_display = range_pred
-            if previous_salary:
-                range_limited, min_sal, _ = check_salary_reduction_limit(range_pred, previous_salary)
-                if range_limited:
-                    range_display = min_sal
-            all_predictions.append({
-                'モデル': range_name,
-                '予測年俸': range_display / 1e6,
-                '減額制限': 'あり' if range_limited else 'なし'
-            })
-    else:
-        range_features = player_stats[model_info['feature_cols']].values.reshape(1, -1) if '年齢' in player_stats.index else np.array([player_stats[model_info['feature_cols'][:-1]].values.tolist() + [28]])
-        
-        range_pred_log = model_info['model'].predict(range_features)[0]
-        range_pred = np.expm1(range_pred_log)
-        range_pred = round(range_pred / 100000) * 100000
-        
-        range_display = range_pred
-        if previous_salary:
-            range_limited, min_sal, _ = check_salary_reduction_limit(range_pred, previous_salary)
-            if range_limited:
-                range_display = min_sal
-        
-        all_predictions.append({
-            'モデル': range_name,
-            '予測年俸': range_display / 1e6,
-            '減額制限': 'あり' if range_limited else 'なし'
-        })
+            # 年俸レンジのチェック
+            if range_name == "超高年俸層":
+                # 1億円以上の予測処理
+                if previous_salary >= 1e7:  # 1億円以上
+                    range_features = player_stats[model_info['feature_cols']].values.reshape(1, -1)
+                    range_pred_log = model_info['model'].predict(range_features)[0]
+                    range_pred = np.expm1(range_pred_log)
+                    range_pred = round(range_pred / 100000) * 100000
+                    range_display = range_pred
+                    if previous_salary:
+                        range_limited, min_sal, _ = check_salary_reduction_limit(range_pred, previous_salary)
+                        if range_limited:
+                            range_display = min_sal
+                    all_predictions.append({
+                        'モデル': range_name,
+                        '予測年俸': range_display / 1e6,
+                        '減額制限': 'あり' if range_limited else 'なし'
+                    })
+            else:
+                range_features = player_stats[model_info['feature_cols']].values.reshape(1, -1) if '年齢' in player_stats.index else np.array([player_stats[model_info['feature_cols'][:-1]].values.tolist() + [28]])
+                
+                range_pred_log = model_info['model'].predict(range_features)[0]
+                range_pred = np.expm1(range_pred_log)
+                range_pred = round(range_pred / 100000) * 100000
+                
+                range_display = range_pred
+                if previous_salary:
+                    range_limited, min_sal, _ = check_salary_reduction_limit(range_pred, previous_salary)
+                    if range_limited:
+                        range_display = min_sal
+                
+                all_predictions.append({
+                    'モデル': range_name,
+                    '予測年俸': range_display / 1e6,
+                    '減額制限': 'あり' if range_limited else 'なし'
+                })
                 
                 df_predictions = pd.DataFrame(all_predictions)
                 
@@ -2195,6 +2195,7 @@ st.markdown("*NPB選手年俸予測システム - made by Sato&Kurokawa - Powere
 # Streamlitアプリを再起動するか、以下のコマンドを実行
 st.cache_data.clear()
 st.cache_resource.clear()
+
 
 
 
