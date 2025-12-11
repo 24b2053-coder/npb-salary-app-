@@ -318,6 +318,7 @@ st.markdown("---")
 # セッション状態の初期化
 if 'model_trained' not in st.session_state:
     st.session_state.model_trained = False
+
 # 年俸レンジ別モデルも訓練
 ranged_models = train_ranged_models(merged_df)
 st.session_state.ranged_models = ranged_models
@@ -513,6 +514,7 @@ def train_models(_merged_df):
     best_model = results[best_model_name]['model']
     
     return best_model, best_model_name, scaler, feature_cols, results, ml_df
+    
 
 # 年俸レンジ別モデル訓練関数
 @st.cache_resource
@@ -593,6 +595,8 @@ if data_loaded:
             
             best_model, best_model_name, scaler, feature_cols, results, ml_df = train_models(merged_df)
             
+            ranged_models = train_ranged_models(merged_df)
+            
             st.session_state.model_trained = True
             st.session_state.best_model = best_model
             st.session_state.best_model_name = best_model_name
@@ -635,6 +639,7 @@ if data_loaded:
         - 📈 **性能**: 予測モデルの詳細情報
         - 📉 **要因分析**: 年俸に影響を与える要因の分析
         - 🏆 **精度ランキング**: 誤差が少ない選手の分析
+        - 💰 **年俸別予測**: 年俸レンジ別に特化したモデルで予測
         
         ### ⚖️ NPB減額制限ルール
         - **1億円以上**: 最大40%まで減額可能（最低60%保証）
@@ -2172,6 +2177,7 @@ st.markdown("*NPB選手年俸予測システム - made by Sato&Kurokawa - Powere
 # Streamlitアプリを再起動するか、以下のコマンドを実行
 st.cache_data.clear()
 st.cache_resource.clear()
+
 
 
 
