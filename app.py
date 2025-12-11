@@ -2090,7 +2090,7 @@ if data_loaded:
                     '減額制限': 'あり' if unified_limited else 'なし'
                 })
                 
-                for range_name, model_info in st.session_state.ranged_models.items():
+for range_name, model_info in st.session_state.ranged_models.items():
                     
     # 年俸レンジのチェック
     if range_name == "超高年俸層":
@@ -2195,6 +2195,7 @@ st.markdown("*NPB選手年俸予測システム - made by Sato&Kurokawa - Powere
 # Streamlitアプリを再起動するか、以下のコマンドを実行
 st.cache_data.clear()
 st.cache_resource.clear()
+
 
 
 
