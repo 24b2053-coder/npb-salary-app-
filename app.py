@@ -13,17 +13,20 @@ warnings.filterwarnings('ignore')
 
 from sklearn.ensemble import StackingRegressor
 from sklearn.linear_model import Ridge
+
 try:
     from xgboost import XGBRegressor
     XGBOOST_AVAILABLE = True
 except ImportError:
     XGBOOST_AVAILABLE = False
-    
+    st.warning("⚠️ XGBoostがインストールされていません")
+
 try:
     from lightgbm import LGBMRegressor
     LIGHTGBM_AVAILABLE = True
 except ImportError:
     LIGHTGBM_AVAILABLE = False
+    st.warning("⚠️ LightGBMがインストールされていません")
 
 # ページ設定
 st.set_page_config(
@@ -270,26 +273,16 @@ except ImportError:
 
 # 減額制限計算関数
 def calculate_salary_limit(previous_salary):
-    """
-    NPBの減額制限を計算する
-    1億円以上: 40%まで減額可能（最低60%）
-    1億円未満: 25%まで減額可能（最低75%）
-    """
-    if previous_salary >= 100_000_000:  # 1億円以上
+    if previous_salary >= 100_000_000:
         reduction_rate = 0.40
         min_salary = previous_salary * 0.60
-    else:  # 1億円未満
+    else:
         reduction_rate = 0.25
         min_salary = previous_salary * 0.75
-    
     return min_salary, reduction_rate
 
 def check_salary_reduction_limit(predicted_salary, previous_salary):
-    """
-    予測年俸が減額制限に引っかかるかチェック
-    """
     min_salary, reduction_rate = calculate_salary_limit(previous_salary)
-    
     if predicted_salary < min_salary:
         return True, min_salary, reduction_rate
     else:
@@ -302,14 +295,10 @@ st.markdown("---")
 # セッション状態の初期化
 if 'model_trained' not in st.session_state:
     st.session_state.model_trained = False
-    
-if 'use_stacking' not in st.session_state:
-    st.session_state.use_stacking = False
 
 # データ読み込み処理
 @st.cache_data
 def load_data():
-    """データを読み込んでキャッシュする"""
     try:
         salary_df = pd.read_csv('data/salary_2023&2024&2025.csv')
         stats_2023 = pd.read_csv('data/stats_2023.csv')
@@ -431,6 +420,164 @@ def prepare_data(_salary_df, _stats_2023, _stats_2024, _stats_2025, _titles_df):
     
     return merged_df, stats_all_with_titles, salary_long
 
+@st.cache_resource
+def train_stacking_model(_merged_df):
+    """
+    スタッキングで複数モデルを自動統合
+    """
+    st.info("🤖 スタッキングアンサンブル学習を開始...")
+    
+    # データ準備
+    feature_cols = ['試合', '打席', '打数', '得点', '安打', '二塁打', '三塁打', '本塁打', 
+                   '塁打', '打点', '盗塁', '盗塁刺', '四球', '死球', '三振', '併殺打', 
+                   '打率', '出塁率', '長打率', '犠打', '犠飛', 'タイトル数']
+    
+    if '年齢' in _merged_df.columns:
+        feature_cols.append('年齢')
+        ml_df = _merged_df[feature_cols + ['年俸_円', '選手名', '成績年度']].copy()
+    else:
+        ml_df = _merged_df[feature_cols + ['年俸_円', '選手名', '成績年度']].copy()
+        ml_df['年齢'] = 28
+        feature_cols.append('年齢')
+    
+    ml_df = ml_df.dropna()
+    
+    X = ml_df[feature_cols]
+    y = ml_df['年俸_円']
+    y_log = np.log1p(y)
+    
+    X_train, X_test, y_train_log, y_test_log = train_test_split(
+        X, y_log, test_size=0.2, random_state=42
+    )
+    
+    y_train_original = np.expm1(y_train_log)
+    y_test_original = np.expm1(y_test_log)
+    
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+    
+    # ベースモデル
+    st.markdown("### 📊 第1層：ベースモデル構築")
+    
+    base_models = [
+        ('rf', RandomForestRegressor(
+            n_estimators=200, max_depth=15, min_samples_split=5,
+            random_state=42, n_jobs=-1
+        )),
+        ('gb', GradientBoostingRegressor(
+            n_estimators=200, max_depth=7, learning_rate=0.05,
+            random_state=42
+        ))
+    ]
+    
+    if XGBOOST_AVAILABLE:
+        base_models.append(
+            ('xgb', XGBRegressor(
+                n_estimators=200, max_depth=7, learning_rate=0.05,
+                random_state=42, n_jobs=-1, verbosity=0
+            ))
+        )
+    
+    if LIGHTGBM_AVAILABLE:
+        base_models.append(
+            ('lgbm', LGBMRegressor(
+                n_estimators=200, max_depth=7, learning_rate=0.05,
+                random_state=42, n_jobs=-1, verbose=-1
+            ))
+        )
+    
+    # 各ベースモデルを訓練
+    base_results = []
+    trained_models = []
+    
+    for name, model in base_models:
+        with st.spinner(f"⚙️ {name.upper()} 訓練中..."):
+            model.fit(X_train, y_train_log)
+            y_pred_log = model.predict(X_test)
+            y_pred = np.expm1(y_pred_log)
+            
+            mae = mean_absolute_error(y_test_original, y_pred)
+            r2 = r2_score(y_test_original, y_pred)
+            
+            base_results.append({
+                'モデル': name.upper(),
+                'MAE (百万円)': f"{mae/1e6:.2f}",
+                'R² スコア': f"{r2:.4f}"
+            })
+            
+            trained_models.append((name, model))
+    
+    st.dataframe(pd.DataFrame(base_results), use_container_width=True)
+    
+    # メタモデル
+    st.markdown("### 🧠 第2層：メタモデルで自動統合")
+    st.info("各モデルの予測を統合し、最適な重みを自動学習します")
+    
+    stacking_model = StackingRegressor(
+        estimators=trained_models,
+        final_estimator=Ridge(alpha=1.0),
+        cv=5,
+        n_jobs=-1
+    )
+    
+    with st.spinner("🔥 スタッキングモデル訓練中..."):
+        stacking_model.fit(X_train, y_train_log)
+    
+    # 最終評価
+    y_pred_stacking_log = stacking_model.predict(X_test)
+    y_pred_stacking = np.expm1(y_pred_stacking_log)
+    
+    mae_stacking = mean_absolute_error(y_test_original, y_pred_stacking)
+    r2_stacking = r2_score(y_test_original, y_pred_stacking)
+    
+    st.success("✅ スタッキング完了！")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("スタッキング MAE", f"{mae_stacking/1e6:.2f} 百万円")
+    with col2:
+        st.metric("スタッキング R²", f"{r2_stacking:.4f}")
+    
+    # 重み係数の可視化
+    st.markdown("### 🎯 学習された重み係数")
+    
+    meta_coef = stacking_model.final_estimator_.coef_
+    model_names = [name.upper() for name, _ in trained_models]
+    
+    fig, ax = plt.subplots(figsize=(10, 5))
+    colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12'][:len(model_names)]
+    ax.barh(model_names, meta_coef, color=colors, alpha=0.7)
+    
+    for i, val in enumerate(meta_coef):
+        ax.text(val + 0.01 if val > 0 else val - 0.01, i, f'{val:.3f}', 
+                va='center', ha='left' if val > 0 else 'right', fontweight='bold')
+    
+    ax.set_xlabel('重み係数', fontweight='bold')
+    ax.set_title('各モデルの自動学習された重要度', fontweight='bold', fontsize=14)
+    ax.grid(axis='x', alpha=0.3)
+    ax.axvline(x=0, color='black', linewidth=0.8)
+    st.pyplot(fig)
+    plt.close(fig)
+    
+    # 結果を辞書形式で返す
+    results = {
+        'スタッキング': {
+            'model': stacking_model,
+            'MAE': mae_stacking,
+            'R2': r2_stacking
+        }
+    }
+    
+    for (name, model), result in zip(trained_models, base_results):
+        results[name.upper()] = {
+            'model': model,
+            'MAE': float(result['MAE (百万円)']) * 1e6,
+            'R2': float(result['R² スコア'])
+        }
+    
+    return stacking_model, 'スタッキング', scaler, feature_cols, results, ml_df
+
 # モデル訓練関数（対数変換版・年齢追加）
 @st.cache_resource
 def train_models(_merged_df):
@@ -451,8 +598,6 @@ def train_models(_merged_df):
         feature_cols.append('年齢')
     
     ml_df = ml_df.dropna()
-    
-    # 以下同じ...
     
     X = ml_df[feature_cols]
     y = ml_df['年俸_円']
@@ -503,7 +648,7 @@ def train_models(_merged_df):
 
 # データ読み込みとモデル訓練
 if data_loaded:
-    # ★★★ ここに追加：サイドバー設定を先に定義 ★★★
+    # サイドバー設定
     st.sidebar.markdown("---")
     st.sidebar.markdown("### ⚙️ モデル設定")
     
@@ -521,21 +666,17 @@ if data_loaded:
         st.rerun()
     
     st.sidebar.markdown("---")
-    # ★★★ ここまで追加 ★★★
     
-    # モデル訓練処理
+    # モデル訓練
     if not st.session_state.model_trained:
         with st.spinner('🤖 モデルを訓練中...'):
             merged_df, stats_all_with_titles, salary_long = prepare_data(
                 salary_df, stats_2023, stats_2024, stats_2025, titles_df
             )
             
-            # use_stacking は上で定義済みなので使える
             if use_stacking:
-                # スタッキングモデルを使用
                 best_model, best_model_name, scaler, feature_cols, results, ml_df = train_stacking_model(merged_df)
             else:
-                # 従来のモデルを使用
                 best_model, best_model_name, scaler, feature_cols, results, ml_df = train_models(merged_df)
             
             st.session_state.model_trained = True
@@ -1647,5 +1788,6 @@ st.markdown("*NPB選手年俸予測システム - made by Sato&Kurokawa - Powere
 # Streamlitアプリを再起動するか、以下のコマンドを実行
 st.cache_data.clear()
 st.cache_resource.clear()
+
 
 
