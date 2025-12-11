@@ -19,14 +19,11 @@ try:
     XGBOOST_AVAILABLE = True
 except ImportError:
     XGBOOST_AVAILABLE = False
-    st.warning("⚠️ XGBoostがインストールされていません")
-
 try:
     from lightgbm import LGBMRegressor
     LIGHTGBM_AVAILABLE = True
 except ImportError:
     LIGHTGBM_AVAILABLE = False
-    st.warning("⚠️ LightGBMがインストールされていません")
 
 # ページ設定
 st.set_page_config(
@@ -34,6 +31,13 @@ st.set_page_config(
     page_icon="⚾",
     layout="centered",
 )
+
+if not XGBOOST_AVAILABLE:
+    st.sidebar.info("ℹ️ XGBoostは利用できません（他のモデルで代替）")
+
+if not LIGHTGBM_AVAILABLE:
+    st.sidebar.info("ℹ️ LightGBMは利用できません（他のモデルで代替）")
+
 
 st.markdown("""
 <style>
@@ -1788,6 +1792,7 @@ st.markdown("*NPB選手年俸予測システム - made by Sato&Kurokawa - Powere
 # Streamlitアプリを再起動するか、以下のコマンドを実行
 st.cache_data.clear()
 st.cache_resource.clear()
+
 
 
 
