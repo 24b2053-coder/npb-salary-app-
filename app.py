@@ -311,22 +311,6 @@ def check_salary_reduction_limit(predicted_salary, previous_salary):
     else:
         return False, min_salary, reduction_rate
 
-# 年俸帯を判定する関数
-def get_salary_tier(salary):
-    """年俸額から年俸帯を判定（動的設定対応）"""
-    thresholds = st.session_state.tier_thresholds
-    
-    if salary < thresholds['very_low_max'] * 1_000_000:
-        return 'very_low'
-    elif salary < thresholds['low_max'] * 1_000_000:
-        return 'low'
-    elif salary < thresholds['mid_max'] * 1_000_000:
-        return 'mid'
-    elif salary < thresholds['high_max'] * 1_000_000:
-        return 'high'
-    else:
-        return 'very_high'
-
 # タイトル
 st.title("⚾ NPB選手年俸予測システム")
 st.markdown("---")
@@ -555,92 +539,6 @@ if data_loaded:
         key="main_menu",
         label_visibility="collapsed"
     )
-
-    # メニュー選択
-menu = st.sidebar.radio(
-    "メニュー",
-    ["🏠 ホーム", "🔍 選手予測", "📊 選手比較", "🔬 モデル比較", "✏️ カスタム", "📈 性能", "📉 要因分析", "🏆 精度ランキング", "💎 年俸帯別分析"],
-    key="main_menu",
-    label_visibility="collapsed"
-)
-
-st.sidebar.markdown("---")
-st.sidebar.markdown("### ⚙️ 年俸帯設定")
-
-# セッション状態の初期化
-if 'tier_thresholds' not in st.session_state:
-    st.session_state.tier_thresholds = {
-        'very_low_max': 10,
-        'low_max': 30,
-        'mid_max': 70,
-        'high_max': 150
-    }
-
-# 年俸帯の境界を設定
-with st.sidebar.expander("💰 年俸帯の境界を設定", expanded=False):
-    st.markdown("**各年俸帯の上限を百万円単位で設定**")
-    
-    very_low_max = st.number_input(
-        "超低年俸帯の上限（百万円）",
-        min_value=5,
-        max_value=20,
-        value=st.session_state.tier_thresholds['very_low_max'],
-        step=1,
-        key="very_low_threshold"
-    )
-    
-    low_max = st.number_input(
-        "低年俸帯の上限（百万円）",
-        min_value=very_low_max + 1,
-        max_value=50,
-        value=st.session_state.tier_thresholds['low_max'],
-        step=5,
-        key="low_threshold"
-    )
-    
-    mid_max = st.number_input(
-        "中年俸帯の上限（百万円）",
-        min_value=low_max + 1,
-        max_value=100,
-        value=st.session_state.tier_thresholds['mid_max'],
-        step=5,
-        key="mid_threshold"
-    )
-    
-    high_max = st.number_input(
-        "高年俸帯の上限（百万円）",
-        min_value=mid_max + 1,
-        max_value=300,
-        value=st.session_state.tier_thresholds['high_max'],
-        step=10,
-        key="high_threshold"
-    )
-    
-    # 値が変更されたら再訓練フラグを立てる
-    if (very_low_max != st.session_state.tier_thresholds['very_low_max'] or
-        low_max != st.session_state.tier_thresholds['low_max'] or
-        mid_max != st.session_state.tier_thresholds['mid_max'] or
-        high_max != st.session_state.tier_thresholds['high_max']):
-        
-        if st.button("🔄 設定を適用して再訓練", type="primary", key="retrain_button"):
-            st.session_state.tier_thresholds = {
-                'very_low_max': very_low_max,
-                'low_max': low_max,
-                'mid_max': mid_max,
-                'high_max': high_max
-            }
-            st.session_state.model_trained = False
-            st.rerun()
-    
-    # 現在の設定を表示
-    st.markdown("**現在の年俸帯設定:**")
-    st.markdown(f"""
-    - 超低年俸帯: 0 - {st.session_state.tier_thresholds['very_low_max']}百万円
-    - 低年俸帯: {st.session_state.tier_thresholds['very_low_max']} - {st.session_state.tier_thresholds['low_max']}百万円
-    - 中年俸帯: {st.session_state.tier_thresholds['low_max']} - {st.session_state.tier_thresholds['mid_max']}百万円
-    - 高年俸帯: {st.session_state.tier_thresholds['mid_max']} - {st.session_state.tier_thresholds['high_max']}百万円
-    - 超高年俸帯: {st.session_state.tier_thresholds['high_max']}百万円以上
-    """)
     
     # ホーム
     if menu == "🏠 ホーム":
@@ -670,31 +568,6 @@ with st.sidebar.expander("💰 年俸帯の境界を設定", expanded=False):
         - **1億円以上**: 最大40%まで減額可能（最低60%保証）
         - **1億円未満**: 最大25%まで減額可能（最低75%保証）
         """)
-
-    elif menu == "💎 年俸帯別分析":
-        st.header("💎 年俸帯別分析")
-        st.markdown("年俸を5つの帯に分けて、それぞれに最適化されたモデルで予測精度を向上させています")
-        
-        # 年俸帯の定義
-        st.subheader("📊 年俸帯の定義")
-    
-        thresholds = st.session_state.tier_thresholds
-    
-        tier_info = pd.DataFrame({
-            '年俸帯': ['超低年俸帯 (VERY_LOW)', '低年俸帯 (LOW)', '中年俸帯 (MID)', '高年俸帯 (HIGH)', '超高年俸帯 (VERY_HIGH)'],
-            '範囲': [
-                f'0 - {thresholds["very_low_max"]}百万円',
-                f'{thresholds["very_low_max"]} - {thresholds["low_max"]}百万円',
-                f'{thresholds["low_max"]} - {thresholds["mid_max"]}百万円',
-                f'{thresholds["mid_max"]} - {thresholds["high_max"]}百万円',
-                f'{thresholds["high_max"]}百万円以上'
-            ],
-            '対象': ['育成・新人選手', '若手選手', '中堅選手', '主力選手', 'スター・億プレイヤー']
-        })
-    
-        st.dataframe(tier_info, use_container_width=True, hide_index=True)
-    
-        st.info("💡 **ヒント**: 左サイドバーの「年俸帯設定」から境界値を変更できます")
     
     # 選手検索・予測
     elif menu == "🔍 選手予測":
@@ -928,7 +801,7 @@ with st.sidebar.expander("💰 年俸帯の境界を設定", expanded=False):
         ]['選手名'].unique()
         
         selected_players = st.multiselect(
-            "比較する選手を選択してください（最大5人）",
+            "比較する選手を2人以上選択してください（最大5人）",
             options=sorted(available_players),
             max_selections=5,
             key="compare_players_multiselect"
@@ -1055,8 +928,7 @@ with st.sidebar.expander("💰 年俸帯の境界を設定", expanded=False):
                         ax2.grid(axis='y', alpha=0.3)
                         st.pyplot(fig2)
                         plt.close(fig2)
-        else:
-            st.info("👆 2人以上の選手を選択してください")
+
     
     # 複数モデル比較
     elif menu == "🔬 モデル比較":
@@ -1382,8 +1254,7 @@ with st.sidebar.expander("💰 年俸帯の境界を設定", expanded=False):
             titles = st.number_input("タイトル数", min_value=0, max_value=10, value=0, key="custom_titles")
             previous_salary = st.number_input("前年年俸（百万円）", min_value=0, max_value=10000, value=0, 
                                             help="減額制限チェック用。0の場合はチェックなし", key="custom_prev_salary")
-            age = st.number_input("年齢", min_value=18, max_value=50, value=28, 
-                                help="選手の年齢を入力してください", key="custom_age")
+            age = st.number_input("年齢", min_value=18, max_value=50, value=28, key="custom_age")
         
         st.markdown("---")
         
@@ -1728,7 +1599,7 @@ with st.sidebar.expander("💰 年俸帯の境界を設定", expanded=False):
         # ランキングのソート基準を選択
         sort_by = st.radio(
             "ランキング基準",
-            ["誤差率（小さい順）", "誤差額（小さい順）", "誤差率（大きい順）","誤差額（大きい順）","予測年俸（高い順）"],
+            ["誤差率（小さい順）", "誤差額（小さい順）", "誤差率（大きい順）","誤差額（大きい順）","予測年俸（低い順）","予測年俸（高い順）"],
             horizontal=True,
             key="rank_sort_by"
         )
@@ -1858,7 +1729,9 @@ with st.sidebar.expander("💰 年俸帯の境界を設定", expanded=False):
                             df_ranking = df_ranking.sort_values('誤差率', ascending=False)
                         elif sort_by == "誤差額（大きい順）":
                             df_ranking = df_ranking.sort_values('誤差額', ascending=False)
-                        else:  # 予測年俸（高い順）
+                        elif sort_by == "予測年俸（低い順）":
+                            df_ranking = df_ranking.sort_values('予測年俸（制限後）', ascending=True)
+                        else:
                             df_ranking = df_ranking.sort_values('予測年俸（制限後）', ascending=False)
                         
                         # 順位を設定
@@ -1866,8 +1739,6 @@ with st.sidebar.expander("💰 年俸帯の境界を設定", expanded=False):
                         
                         # Top N のみ表示
                         df_top = df_ranking.head(top_n)
-                        
-                        st.success(f"✅ {len(ranking_data)}人の選手を分析しました！")
                         
                         # 統計サマリー
                         col1, col2, col3, col4 = st.columns(4)
@@ -2053,11 +1924,11 @@ with st.sidebar.expander("💰 年俸帯の境界を設定", expanded=False):
                         st.error("❌ ランキングを作成できませんでした")
 
 
-    else:
-        # ファイル未アップロード時
-        st.info("📁 CSVファイルが見つかりませんでした")
-        st.markdown("""
-        ### データ配置方法
+else:
+    # ファイル未アップロード時
+    st.info("📁 CSVファイルが見つかりませんでした")
+    st.markdown("""
+    ### データ配置方法
     
     以下のいずれかの方法でデータを用意してください：
     
@@ -2091,7 +1962,6 @@ st.markdown("*NPB選手年俸予測システム - made by Sato&Kurokawa - Powere
 # Streamlitアプリを再起動するか、以下のコマンドを実行
 st.cache_data.clear()
 st.cache_resource.clear()
-
 
 
 
