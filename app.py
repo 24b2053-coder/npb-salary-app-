@@ -931,7 +931,7 @@ if data_loaded:
                             (st.session_state.salary_long['選手名'] == player) &
                             (st.session_state.salary_long['年度'] == 2025)
                         ]
-                        previous_salary = previous_salary_data['年俸_円'].values[0] if not previous_salary_data.empty else None
+                        actual_salary = actual_salary_data['年俸_円'].values[0] if not actual_salary_data.empty else None
                         
                         # 減額制限チェック
                         is_limited = False
@@ -2184,4 +2184,5 @@ st.markdown("*NPB選手年俸予測システム - made by Sato&Kurokawa - Powere
 # Streamlitアプリを再起動するか、以下のコマンドを実行
 st.cache_data.clear()
 st.cache_resource.clear()
+
 
