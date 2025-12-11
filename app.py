@@ -1991,7 +1991,7 @@ if data_loaded:
     elif menu == "💰 年俸別予測":
         st.header("💰 年俸レンジ別特化モデルで予測")
         st.markdown("""
-        年俸を**3つのレンジ**に分割し、各レンジに特化したモデルで予測を行います。
+        年俸を**4つのレンジ**に分割し、各レンジに特化したモデルで予測を行います。
         
         - **低年俸層**: 3000万円未満
         - **中年俸層**: 3000万円以上5000万円未満
@@ -2176,6 +2176,7 @@ st.markdown("*NPB選手年俸予測システム - made by Sato&Kurokawa - Powere
 # Streamlitアプリを再起動するか、以下のコマンドを実行
 st.cache_data.clear()
 st.cache_resource.clear()
+
 
 
 
