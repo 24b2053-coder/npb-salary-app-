@@ -1711,7 +1711,7 @@ if data_loaded:
                                 '順位': 0,  # 後で設定
                                 '選手名': player,
                                 '実際の年俸': actual_salary / 1e6,
-                                '予測年俸（制限後）': display_salary / 1e6,
+                                '予測年俸': display_salary / 1e6,
                                 '誤差額': error_amount / 1e6,
                                 '誤差率': error_rate,
                                 '減額制限': 'あり' if is_limited else 'なし',
@@ -1759,7 +1759,7 @@ if data_loaded:
                         # データフレーム表示
                         df_display = df_top.copy()
                         df_display['実際の年俸'] = df_display['実際の年俸'].apply(lambda x: f"{x:.1f}")
-                        df_display['予測年俸（制限後）'] = df_display['予測年俸（制限後）'].apply(lambda x: f"{x:.1f}")
+                        df_display['予測年俸'] = df_display['予測年俸'].apply(lambda x: f"{x:.1f}")
                         df_display['誤差額'] = df_display['誤差額'].apply(lambda x: f"{x:.1f}")
                         df_display['誤差率'] = df_display['誤差率'].apply(lambda x: f"{x:.2f}%")
                         df_display['打率'] = df_display['打率'].apply(lambda x: f"{x:.3f}")
@@ -1783,7 +1783,7 @@ if data_loaded:
                                 with col1:
                                     st.metric("実際の年俸", f"{row['実際の年俸']:.1f}百万円")
                                 with col2:
-                                    st.metric("予測年俸", f"{row['予測年俸（制限後）']:.1f}百万円")
+                                    st.metric("予測年俸", f"{row['予測年俸']:.1f}百万円")
                                 with col3:
                                     st.metric("誤差額", f"{row['誤差額']:.1f}百万円")
                                 with col4:
@@ -1960,6 +1960,7 @@ st.markdown("*NPB選手年俸予測システム - made by Sato&Kurokawa - Powere
 # Streamlitアプリを再起動するか、以下のコマンドを実行
 st.cache_data.clear()
 st.cache_resource.clear()
+
 
 
 
