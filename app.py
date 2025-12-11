@@ -1995,7 +1995,8 @@ if data_loaded:
         
         - **低年俸層**: 3000万円未満
         - **中年俸層**: 3000万円以上5000万円未満
-        - **高年俸層**: 5000万円以上
+        - **高年俸層**: 5000万円以上1億円未満
+        - **高年俸層**: 1億円以上
         """)
         
         # モデル性能表示
@@ -2175,6 +2176,7 @@ st.markdown("*NPB選手年俸予測システム - made by Sato&Kurokawa - Powere
 # Streamlitアプリを再起動するか、以下のコマンドを実行
 st.cache_data.clear()
 st.cache_resource.clear()
+
 
 
 
