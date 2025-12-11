@@ -944,7 +944,7 @@ if data_loaded:
                         results_list.append({
                             '選手名': player,
                             '前年年俸': previous_salary / 1e6 if previous_salary else None,
-                            '実際年俸': actual_salary / 1e6,
+                            '実際の年俸': actual_salary / 1e6,
                             '予測年俸（制限前）': predicted_salary / 1e6,
                             '予測年俸（制限後）': display_salary / 1e6,
                             '減額制限': 'あり' if is_limited else 'なし',
@@ -2184,5 +2184,6 @@ st.markdown("*NPB選手年俸予測システム - made by Sato&Kurokawa - Powere
 # Streamlitアプリを再起動するか、以下のコマンドを実行
 st.cache_data.clear()
 st.cache_resource.clear()
+
 
 
