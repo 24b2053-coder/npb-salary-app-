@@ -11,6 +11,20 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import warnings
 warnings.filterwarnings('ignore')
 
+from sklearn.ensemble import StackingRegressor
+from sklearn.linear_model import Ridge
+try:
+    from xgboost import XGBRegressor
+    XGBOOST_AVAILABLE = True
+except ImportError:
+    XGBOOST_AVAILABLE = False
+    
+try:
+    from lightgbm import LGBMRegressor
+    LIGHTGBM_AVAILABLE = True
+except ImportError:
+    LIGHTGBM_AVAILABLE = False
+
 # ページ設定
 st.set_page_config(
     page_title="NPB選手年俸予測システム",
@@ -288,6 +302,9 @@ st.markdown("---")
 # セッション状態の初期化
 if 'model_trained' not in st.session_state:
     st.session_state.model_trained = False
+    
+if 'use_stacking' not in st.session_state:
+    st.session_state.use_stacking = False
 
 # データ読み込み処理
 @st.cache_data
@@ -492,7 +509,10 @@ if data_loaded:
                 salary_df, stats_2023, stats_2024, stats_2025, titles_df
             )
             
-            best_model, best_model_name, scaler, feature_cols, results, ml_df = train_models(merged_df)
+            if use_stacking:
+                best_model, best_model_name, scaler, feature_cols, results, ml_df = train_stacking_model(merged_df)
+            else:
+                best_model, best_model_name, scaler, feature_cols, results, ml_df = train_models(merged_df)
             
             st.session_state.model_trained = True
             st.session_state.best_model = best_model
@@ -503,6 +523,24 @@ if data_loaded:
             st.session_state.salary_long = salary_long
             st.session_state.results = results
             st.session_state.ml_df = ml_df
+
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### ⚙️ モデル設定")
+
+    use_stacking = st.sidebar.checkbox(
+    "🤖 AI自動最適化（スタッキング）",
+    value=False,
+    help="複数モデルを統合し、自動で最適な重みを学習（訓練時間: 約2分）",
+    key="use_stacking_checkbox"
+    )
+
+    if st.sidebar.button("🔄 モデル再訓練", key="retrain_button"):
+        st.session_state.model_trained = False
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        st.rerun()
+
+    st.sidebar.markdown("---")
     
     # メインコンテンツ
     st.sidebar.markdown("### 🎯 機能選択")
@@ -1601,3 +1639,4 @@ st.markdown("*NPB選手年俸予測システム - made by Sato&Kurokawa - Powere
 # Streamlitアプリを再起動するか、以下のコマンドを実行
 st.cache_data.clear()
 st.cache_resource.clear()
+
