@@ -1237,8 +1237,15 @@ if data_loaded:
             double_plays = st.number_input("併殺打", min_value=0, max_value=50, value=10, key="custom_gdp")
             sac_hits = st.number_input("犠打", min_value=0, max_value=50, value=2, key="custom_sh")
             sac_flies = st.number_input("犠飛", min_value=0, max_value=30, value=5, key="custom_sf")
-            
+        
         with col2:
+            st.markdown("**タイトル・前年年俸・年齢**")
+            titles = st.number_input("タイトル数", min_value=0, max_value=10, value=0, key="custom_titles")
+            previous_salary = st.number_input("前年年俸（百万円）", min_value=0, max_value=10000, value=0, 
+                                            help="減額制限チェック用。0の場合はチェックなし", key="custom_prev_salary")
+            age = st.number_input("年齢", min_value=18, max_value=50, value=28, key="custom_age")
+            
+        with col3:
             st.markdown("**指標（自動計算）**")
             # 打率・出塁率・長打率は自動計算
             avg = hits / at_bats if at_bats > 0 else 0.0
@@ -1248,14 +1255,6 @@ if data_loaded:
             st.metric("打率", f"{avg:.3f}")
             st.metric("出塁率", f"{obp:.3f}")
             st.metric("長打率", f"{slg:.3f}")
-        
-        with col3:
-            st.markdown("**タイトル・前年年俸・年齢**")
-            titles = st.number_input("タイトル数", min_value=0, max_value=10, value=0, key="custom_titles")
-            previous_salary = st.number_input("前年年俸（百万円）", min_value=0, max_value=10000, value=0, 
-                                            help="減額制限チェック用。0の場合はチェックなし", key="custom_prev_salary")
-            age = st.number_input("年齢", min_value=18, max_value=50, value=28, key="custom_age")
-        
         st.markdown("---")
         
         if st.button("🎯 年俸予測実行", type="primary", key="custom_predict_button"):
@@ -1838,7 +1837,7 @@ if data_loaded:
                         
                         # 誤差率でカラーマップ
                         scatter = ax3.scatter(df_ranking['実際の年俸'], 
-                                            df_ranking['予測年俸（制限後）'],
+                                            df_ranking['予測年俸'],
                                             c=df_ranking['誤差率'], 
                                             cmap='RdYlGn_r',
                                             s=100, 
@@ -1847,17 +1846,8 @@ if data_loaded:
                                             linewidth=0.5)
                         
                         # 完全一致の線
-                        max_val = max(df_ranking['実際の年俸'].max(), df_ranking['予測年俸（制限後）'].max())
+                        max_val = max(df_ranking['実際の年俸'].max(), df_ranking['予測年俸'].max())
                         ax3.plot([0, max_val], [0, max_val], 'r--', linewidth=2, alpha=0.5, label='完全一致')
-                        
-                        # Top 10 の選手名を表示
-                        for _, row in top_10.iterrows():
-                            ax3.annotate(row['選手名'], 
-                                       (row['実際の年俸'], row['予測年俸（制限後）']),
-                                       fontsize=8, 
-                                       alpha=0.7,
-                                       xytext=(5, 5),
-                                       textcoords='offset points')
                         
                         ax3.set_xlabel('実際の年俸（百万円）', fontweight='bold')
                         ax3.set_ylabel('予測年俸（百万円）', fontweight='bold')
@@ -1960,11 +1950,3 @@ st.markdown("*NPB選手年俸予測システム - made by Sato&Kurokawa - Powere
 # Streamlitアプリを再起動するか、以下のコマンドを実行
 st.cache_data.clear()
 st.cache_resource.clear()
-
-
-
-
-
-
-
-
