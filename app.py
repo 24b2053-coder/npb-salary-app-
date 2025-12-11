@@ -319,10 +319,6 @@ st.markdown("---")
 if 'model_trained' not in st.session_state:
     st.session_state.model_trained = False
 
-# 年俸レンジ別モデルも訓練
-ranged_models = train_ranged_models(merged_df)
-st.session_state.ranged_models = ranged_models
-
 # データ読み込み処理
 @st.cache_data
 def load_data():
@@ -606,6 +602,7 @@ if data_loaded:
             st.session_state.salary_long = salary_long
             st.session_state.results = results
             st.session_state.ml_df = ml_df
+            st.session_state.ranged_models = ranged_models 
     
     # メインコンテンツ
     st.sidebar.markdown("### 🎯 機能選択")
@@ -2177,6 +2174,7 @@ st.markdown("*NPB選手年俸予測システム - made by Sato&Kurokawa - Powere
 # Streamlitアプリを再起動するか、以下のコマンドを実行
 st.cache_data.clear()
 st.cache_resource.clear()
+
 
 
 
