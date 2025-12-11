@@ -2053,11 +2053,11 @@ with st.sidebar.expander("💰 年俸帯の境界を設定", expanded=False):
                         st.error("❌ ランキングを作成できませんでした")
 
 
-else:
-    # ファイル未アップロード時
-    st.info("📁 CSVファイルが見つかりませんでした")
-    st.markdown("""
-    ### データ配置方法
+    else:
+        # ファイル未アップロード時
+        st.info("📁 CSVファイルが見つかりませんでした")
+        st.markdown("""
+        ### データ配置方法
     
     以下のいずれかの方法でデータを用意してください：
     
@@ -2091,6 +2091,7 @@ st.markdown("*NPB選手年俸予測システム - made by Sato&Kurokawa - Powere
 # Streamlitアプリを再起動するか、以下のコマンドを実行
 st.cache_data.clear()
 st.cache_resource.clear()
+
 
 
 
