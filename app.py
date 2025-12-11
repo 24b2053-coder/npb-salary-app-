@@ -2063,7 +2063,7 @@ if data_loaded:
                 
                 all_predictions.append({
                     'モデル': '統一モデル',
-                    '予測年俸': unified_display / 1000,
+                    '予測年俸': unified_display / 1e6,
                     '減額制限': 'あり' if unified_limited else 'なし'
                 })
                 
@@ -2083,7 +2083,7 @@ if data_loaded:
                     
                     all_predictions.append({
                         'モデル': range_name,
-                        '予測年俸': range_display / 1000,
+                        '予測年俸': range_display / 1e6,
                         '減額制限': 'あり' if range_limited else 'なし'
                     })
                 
@@ -2154,6 +2154,7 @@ st.markdown("*NPB選手年俸予測システム - made by Sato&Kurokawa - Powere
 # Streamlitアプリを再起動するか、以下のコマンドを実行
 st.cache_data.clear()
 st.cache_resource.clear()
+
 
 
 
