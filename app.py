@@ -672,9 +672,9 @@ with st.sidebar.expander("💰 年俸帯の境界を設定", expanded=False):
         """)
 
     elif menu == "💎 年俸帯別分析":
-    st.header("💎 年俸帯別分析")
-    st.markdown("年俸を5つの帯に分けて、それぞれに最適化されたモデルで予測精度を向上させています")
-    
+        st.header("💎 年俸帯別分析")
+        st.markdown("年俸を5つの帯に分けて、それぞれに最適化されたモデルで予測精度を向上させています")
+        
     # 年俸帯の定義
     st.subheader("📊 年俸帯の定義")
     
@@ -2091,4 +2091,5 @@ st.markdown("*NPB選手年俸予測システム - made by Sato&Kurokawa - Powere
 # Streamlitアプリを再起動するか、以下のコマンドを実行
 st.cache_data.clear()
 st.cache_resource.clear()
+
 
