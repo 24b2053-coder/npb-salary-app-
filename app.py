@@ -2286,24 +2286,7 @@ if data_loaded:
                     
                     st.success("✅ 予測完了！")
                     
-                    # メトリクス表示（わかりやすく）
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        if previous_salary:
-                            st.metric("前年年俸", f"{previous_salary/10000:.0f}万円")
-                        else:
-                            st.metric("前年年俸", "データなし")
-                    with col2:
-                        if actual_salary:
-                            st.metric("実際の年俸", f"{actual_salary/10000:.0f}万円", help=f"{predict_year}年の実際の年俸")
-                        else:
-                            st.metric("実際の年俸", "データなし")
-                    with col3:
-                        st.metric("通常モデル予測", f"{df_predictions.iloc[0]['予測年俸(万円)']:.0f}万円")
-                    
-                    # 最良モデル表示（目立つように）
-                    if best_model_info and actual_salary:
-                        st.success(f"🏆 **最も正確だったモデル**: {best_model_info[0]}用  \n誤差: {best_error/10000:.0f}万円")
+                    通常モデル予測
                     
                     st.markdown("---")
                     st.subheader("📊 全モデルの予測結果")
@@ -2389,6 +2372,7 @@ st.markdown("*NPB選手年俸予測システム - made by Sato&Kurokawa - Powere
 # Streamlitアプリを再起動するか、以下のコマンドを実行
 st.cache_data.clear()
 st.cache_resource.clear()
+
 
 
 
