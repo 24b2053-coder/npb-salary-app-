@@ -1966,155 +1966,301 @@ if data_loaded:
     elif menu == "💰 年俸別予測":
         st.header("💰 年俸レンジ別特化モデルで予測")
         st.markdown("""
-        年俸を**5つのレンジ**に分割し、各レンジに特化したモデルで予測を行います。
-        
-        - **低年俸層**: 2000万円未満
-        - **中低年俸層**: 2000万円以上4000万円未満
-        - **中年俸層**: 4000万円以上7000万円未満
-        - **中高年俸層**: 7000万円以上1億円未満
-        - **高年俸層**: 1億円以上4億未満
-        - **超高年俸層**: 3億円以上
+        年俸レンジを**自分で設定**し、各レンジに特化したモデルで予測を行います。
         """)
         
-        # モデル性能表示
+        # レンジ設定セクション
         st.markdown("---")
-        st.subheader("📊 年俸レンジ別モデルの性能")
+        st.subheader("⚙️ 年俸レンジ設定")
         
-        range_performance = []
-        for range_name, model_info in st.session_state.ranged_models.items():
-            range_performance.append({
-                '年俸レンジ': range_name,
-                'データ数': model_info['n_samples'],
-                'MAE（百万円）': f"{model_info['MAE']/1e6:.2f}",
-                'R²スコア': f"{model_info['R2']:.4f}"
-            })
-        
-        df_range_perf = pd.DataFrame(range_performance)
-        st.dataframe(df_range_perf, use_container_width=True, hide_index=True)
-        
-        # 選手選択
-        st.markdown("---")
-        st.subheader("🔍 選手を選択して予測")
-        
-        available_players = st.session_state.stats_all_with_titles[
-            st.session_state.stats_all_with_titles['年度'] == 2024
-        ]['選手名'].unique()
-        
-        selected_player = st.selectbox(
-            "選手を選択してください",
-            options=sorted(available_players),
-            key="ranged_player_select"
+        # プリセット選択
+        preset = st.selectbox(
+            "プリセット選択",
+            ["カスタム", "3分割", "5分割", "7分割"],
+            key="range_preset"
         )
         
-        predict_year = st.slider("予測年度", 2024, 2026, 2025, key="ranged_predict_year")
-        
-        if st.button("🎯 年俸レンジ別予測実行", type="primary", key="ranged_predict_button"):
-            stats_year = predict_year - 1
-            player_stats = st.session_state.stats_all_with_titles[
-                (st.session_state.stats_all_with_titles['選手名'] == selected_player) &
-                (st.session_state.stats_all_with_titles['年度'] == stats_year)
-            ]
+        if preset == "3分割":
+            range_values = [0, 30_000_000, 80_000_000, 500_000_000]
+        elif preset == "5分割":
+            range_values = [0, 20_000_000, 40_000_000, 70_000_000, 100_000_000, 500_000_000]
+        elif preset == "7分割":
+            range_values = [0, 15_000_000, 30_000_000, 50_000_000, 70_000_000, 100_000_000, 200_000_000, 500_000_000]
+        else:
+            # カスタム設定
+            st.markdown("**カスタムレンジ設定（万円単位）**")
+            num_ranges = st.slider("レンジ数", min_value=2, max_value=8, value=5, key="num_ranges")
             
-            if player_stats.empty:
-                st.error(f"❌ {selected_player}の{stats_year}年のデータが見つかりません")
-            else:
-                player_stats = player_stats.iloc[0]
+            range_values = [0]
+            cols = st.columns(num_ranges - 1)
+            for i in range(num_ranges - 1):
+                with cols[i]:
+                    val = st.number_input(
+                        f"区切り{i+1}",
+                        min_value=100,
+                        max_value=50000,
+                        value=[2000, 4000, 7000, 10000, 40000, 80000, 100000][i] if i < 7 else 10000,
+                        step=100,
+                        key=f"range_{i}"
+                    )
+                    range_values.append(val * 10000)
+            range_values.append(500_000_000)
+        
+        # モデル訓練ボタン
+        if st.button("🔧 レンジ別モデルを訓練", type="primary", key="train_ranged_model"):
+            with st.spinner("🤖 モデル訓練中..."):
+                # レンジ別モデル訓練（動的生成）
+                feature_cols = ['試合', '打席', '打数', '得点', '安打', '二塁打', '三塁打', '本塁打', 
+                               '塁打', '打点', '盗塁', '盗塁刺', '四球', '死球', '三振', '併殺打', 
+                               '打率', '出塁率', '長打率', '犠打', '犠飛', 'タイトル数']
                 
-                # 前年年俸取得
-                previous_salary_data = st.session_state.salary_long[
-                    (st.session_state.salary_long['選手名'] == selected_player) &
-                    (st.session_state.salary_long['年度'] == stats_year)
-                ]
-                previous_salary = previous_salary_data['年俸_円'].values[0] if not previous_salary_data.empty else None
+                merged_df = st.session_state.ml_df.copy()
                 
-                # 実際の年俸取得
-                actual_salary_data = st.session_state.salary_long[
-                    (st.session_state.salary_long['選手名'] == selected_player) &
-                    (st.session_state.salary_long['年度'] == predict_year)
-                ]
-                actual_salary = actual_salary_data['年俸_円'].values[0] if not actual_salary_data.empty else None
-                
-                all_predictions = []
-                
-                # 統一モデルで予測
-                feature_cols = st.session_state.feature_cols
-                if '年齢' in player_stats.index:
-                    features = player_stats[feature_cols].values.reshape(1, -1)
+                if '年齢' in merged_df.columns:
+                    feature_cols.append('年齢')
                 else:
-                    features_list = player_stats[feature_cols[:-1]].values.tolist()
-                    features_list.append(28)
-                    features = np.array([features_list])
+                    merged_df['年齢'] = 28
+                    feature_cols.append('年齢')
                 
-                if st.session_state.best_model_name == '線形回帰':
-                    features_scaled = st.session_state.scaler.transform(features)
-                    unified_pred_log = st.session_state.best_model.predict(features_scaled)[0]
-                else:
-                    unified_pred_log = st.session_state.best_model.predict(features)[0]
+                ranged_models = {}
                 
-                unified_pred = np.expm1(unified_pred_log)
-                unified_pred = round(unified_pred / 100000) * 100000
+                for i in range(len(range_values) - 1):
+                    min_sal = range_values[i]
+                    max_sal = range_values[i + 1]
+                    range_name = f"{min_sal/10000:.0f}万円～{max_sal/10000:.0f}万円"
+                    
+                    range_df = merged_df[(merged_df['年俸_円'] >= min_sal) & (merged_df['年俸_円'] < max_sal)].copy()
+                    
+                    if len(range_df) < 10:
+                        st.warning(f"⚠️ {range_name}: データ数不足（{len(range_df)}件）- スキップ")
+                        continue
+                    
+                    X = range_df[feature_cols]
+                    y = range_df['年俸_円']
+                    y_log = np.log1p(y)
+                    
+                    test_size = min(0.2, max(0.1, len(range_df) * 0.2 / len(range_df)))
+                    X_train, X_test, y_train_log, y_test_log = train_test_split(
+                        X, y_log, test_size=test_size, random_state=42
+                    )
+                    
+                    y_test_original = np.expm1(y_test_log)
+                    
+                    scaler = StandardScaler()
+                    X_train_scaled = scaler.fit_transform(X_train)
+                    X_test_scaled = scaler.transform(X_test)
+                    
+                    model = RandomForestRegressor(n_estimators=100, random_state=42, max_depth=10)
+                    model.fit(X_train, y_train_log)
+                    y_pred_log = model.predict(X_test)
+                    y_pred = np.expm1(y_pred_log)
+                    
+                    mae = mean_absolute_error(y_test_original, y_pred)
+                    r2 = r2_score(y_test_original, y_pred)
+                    
+                    ranged_models[range_name] = {
+                        'model': model,
+                        'scaler': scaler,
+                        'MAE': mae,
+                        'R2': r2,
+                        'min_salary': min_sal,
+                        'max_salary': max_sal,
+                        'n_samples': len(range_df),
+                        'feature_cols': feature_cols
+                    }
                 
-                unified_display = unified_pred
-                unified_limited = False
-                if previous_salary:
-                    unified_limited, min_sal, _ = check_salary_reduction_limit(unified_pred, previous_salary)
-                    if unified_limited:
-                        unified_display = min_sal
-                
-                all_predictions.append({
-                    'モデル': '統一モデル',
-                    '予測年俸': unified_display / 1e6,
-                    '減額制限': 'あり' if unified_limited else 'なし'
+                st.session_state.custom_ranged_models = ranged_models
+                st.success("✅ モデル訓練完了！")
+        
+        # モデル性能表示
+        if 'custom_ranged_models' in st.session_state:
+            st.markdown("---")
+            st.subheader("📊 年俸レンジ別モデルの性能")
+            
+            range_performance = []
+            for range_name, model_info in st.session_state.custom_ranged_models.items():
+                range_performance.append({
+                    '年俸レンジ': range_name,
+                    'データ数': model_info['n_samples'],
+                    'MAE（百万円）': f"{model_info['MAE']/1e6:.2f}",
+                    'R²スコア': f"{model_info['R2']:.4f}"
                 })
+            
+            df_range_perf = pd.DataFrame(range_performance)
+            st.dataframe(df_range_perf, use_container_width=True, hide_index=True)
+            
+            # 選手選択
+            st.markdown("---")
+            st.subheader("🔍 選手を選択して予測")
+            
+            available_players = st.session_state.stats_all_with_titles[
+                st.session_state.stats_all_with_titles['年度'] == 2024
+            ]['選手名'].unique()
+            sorted_players = sorted(available_players)
+            
+            # 検索フィルター追加
+            search_filter = st.text_input(
+                "🔍 選手名で絞り込み",
+                placeholder="例: 村上、岡本",
+                key="ranged_search_filter"
+            )
+            
+            if search_filter:
+                filtered_players = [p for p in sorted_players if search_filter in p]
+                if not filtered_players:
+                    st.warning("⚠️ 該当する選手が見つかりません")
+                    filtered_players = sorted_players
+            else:
+                filtered_players = sorted_players
+            
+            selected_player = st.selectbox(
+                "選手を選択してください",
+                options=filtered_players,
+                key="ranged_player_select"
+            )
+            
+            predict_year = st.slider("予測年度", 2024, 2026, 2025, key="ranged_predict_year")
+            
+            if st.button("🎯 年俸レンジ別予測実行", type="primary", key="ranged_predict_button"):
+                stats_year = predict_year - 1
+                player_stats = st.session_state.stats_all_with_titles[
+                    (st.session_state.stats_all_with_titles['選手名'] == selected_player) &
+                    (st.session_state.stats_all_with_titles['年度'] == stats_year)
+                ]
                 
-                # レンジ別モデルで予測
-                for range_name, model_info in st.session_state.ranged_models.items():
-                    range_features = player_stats[model_info['feature_cols']].values.reshape(1, -1) if '年齢' in player_stats.index else np.array([player_stats[model_info['feature_cols'][:-1]].values.tolist() + [28]])
+                if player_stats.empty:
+                    st.error(f"❌ {selected_player}の{stats_year}年のデータが見つかりません")
+                else:
+                    player_stats = player_stats.iloc[0]
                     
-                    range_pred_log = model_info['model'].predict(range_features)[0]
-                    range_pred = np.expm1(range_pred_log)
-                    range_pred = round(range_pred / 100000) * 100000
+                    # 前年年俸取得
+                    previous_salary_data = st.session_state.salary_long[
+                        (st.session_state.salary_long['選手名'] == selected_player) &
+                        (st.session_state.salary_long['年度'] == stats_year)
+                    ]
+                    previous_salary = previous_salary_data['年俸_円'].values[0] if not previous_salary_data.empty else None
                     
-                    range_display = range_pred
+                    # 実際の年俸取得
+                    actual_salary_data = st.session_state.salary_long[
+                        (st.session_state.salary_long['選手名'] == selected_player) &
+                        (st.session_state.salary_long['年度'] == predict_year)
+                    ]
+                    actual_salary = actual_salary_data['年俸_円'].values[0] if not actual_salary_data.empty else None
+                    
+                    all_predictions = []
+                    best_model_info = None
+                    best_error = float('inf')
+                    
+                    # 統一モデルで予測
+                    feature_cols = st.session_state.feature_cols
+                    if '年齢' in player_stats.index:
+                        features = player_stats[feature_cols].values.reshape(1, -1)
+                    else:
+                        features_list = player_stats[feature_cols[:-1]].values.tolist()
+                        features_list.append(28)
+                        features = np.array([features_list])
+                    
+                    if st.session_state.best_model_name == '線形回帰':
+                        features_scaled = st.session_state.scaler.transform(features)
+                        unified_pred_log = st.session_state.best_model.predict(features_scaled)[0]
+                    else:
+                        unified_pred_log = st.session_state.best_model.predict(features)[0]
+                    
+                    unified_pred = np.expm1(unified_pred_log)
+                    unified_pred = round(unified_pred / 100000) * 100000
+                    
+                    unified_display = unified_pred
+                    unified_limited = False
                     if previous_salary:
-                        range_limited, min_sal, _ = check_salary_reduction_limit(range_pred, previous_salary)
-                        if range_limited:
-                            range_display = min_sal
+                        unified_limited, min_sal, _ = check_salary_reduction_limit(unified_pred, previous_salary)
+                        if unified_limited:
+                            unified_display = min_sal
+                    
+                    unified_error = abs(unified_display - actual_salary) if actual_salary else None
                     
                     all_predictions.append({
-                        'モデル': range_name,
-                        '予測年俸': range_display / 1e6,
-                        '減額制限': 'あり' if range_limited else 'なし'
+                        'モデル': '統一モデル',
+                        '予測年俸': unified_display / 1e6,
+                        '減額制限': 'あり' if unified_limited else 'なし',
+                        '誤差': unified_error / 1e6 if unified_error else None
                     })
-                
-                df_predictions = pd.DataFrame(all_predictions)
-                
-                st.success("✅ 予測完了！")
-                
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("前年年俸", f"{previous_salary/1e6:.1f}百万円" if previous_salary else "データなし")
-                with col2:
-                    st.metric("実際の年俸", f"{actual_salary/1e6:.1f}百万円" if actual_salary else "データなし")
-                with col3:
-                    st.metric("統一モデル", f"{df_predictions.iloc[0]['予測年俸']:.1f}百万円")
-                
-                st.dataframe(df_predictions, use_container_width=True, hide_index=True)
-                
-                # グラフ
-                fig, ax = plt.subplots(figsize=(10, 6))
-                ax.barh(range(len(df_predictions)), df_predictions['予測年俸'], alpha=0.7)
-                if actual_salary:
-                    ax.axvline(x=actual_salary/1e6, color='red', linestyle='--', label='実際の年俸')
-                ax.set_yticks(range(len(df_predictions)))
-                ax.set_yticklabels(df_predictions['モデル'])
-                ax.set_xlabel('予測年俸（百万円）')
-                ax.set_title(f'{selected_player} - モデル別予測')
-                ax.legend()
-                ax.grid(alpha=0.3)
-                st.pyplot(fig)
-                plt.close(fig)
-
+                    
+                    if unified_error and unified_error < best_error:
+                        best_error = unified_error
+                        best_model_info = ('統一モデル', unified_display)
+                    
+                    # レンジ別モデルで予測
+                    for range_name, model_info in st.session_state.custom_ranged_models.items():
+                        range_features = player_stats[model_info['feature_cols']].values.reshape(1, -1) if '年齢' in player_stats.index else np.array([player_stats[model_info['feature_cols'][:-1]].values.tolist() + [28]])
+                        
+                        range_pred_log = model_info['model'].predict(range_features)[0]
+                        range_pred = np.expm1(range_pred_log)
+                        range_pred = round(range_pred / 100000) * 100000
+                        
+                        range_display = range_pred
+                        range_limited = False
+                        if previous_salary:
+                            range_limited, min_sal, _ = check_salary_reduction_limit(range_pred, previous_salary)
+                            if range_limited:
+                                range_display = min_sal
+                        
+                        range_error = abs(range_display - actual_salary) if actual_salary else None
+                        
+                        all_predictions.append({
+                            'モデル': range_name,
+                            '予測年俸': range_display / 1e6,
+                            '減額制限': 'あり' if range_limited else 'なし',
+                            '誤差': range_error / 1e6 if range_error else None
+                        })
+                        
+                        if range_error and range_error < best_error:
+                            best_error = range_error
+                            best_model_info = (range_name, range_display)
+                    
+                    df_predictions = pd.DataFrame(all_predictions)
+                    
+                    st.success("✅ 予測完了！")
+                    
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("前年年俸", f"{previous_salary/1e6:.1f}百万円" if previous_salary else "データなし")
+                    with col2:
+                        st.metric("実際の年俸", f"{actual_salary/1e6:.1f}百万円" if actual_salary else "データなし")
+                    with col3:
+                        st.metric("統一モデル", f"{df_predictions.iloc[0]['予測年俸']:.1f}百万円")
+                    
+                    # 最良モデル表示
+                    if best_model_info and actual_salary:
+                        st.success(f"🏆 **最良モデル**: {best_model_info[0]} (誤差: {best_error/1e6:.2f}百万円)")
+                    
+                    # 表示用フォーマット
+                    df_display = df_predictions.copy()
+                    if actual_salary:
+                        df_display['誤差率(%)'] = df_display['誤差'].apply(lambda x: f"{(x/actual_salary*1e6)*100:.2f}%" if x is not None else "N/A")
+                        df_display = df_display.sort_values('誤差')
+                    
+                    df_display['予測年俸'] = df_display['予測年俸'].apply(lambda x: f"{x:.2f}")
+                    if '誤差' in df_display.columns:
+                        df_display['誤差'] = df_display['誤差'].apply(lambda x: f"{x:.2f}" if x is not None else "N/A")
+                    
+                    st.dataframe(df_display, use_container_width=True, hide_index=True)
+                    
+                    # グラフ
+                    fig, ax = plt.subplots(figsize=(10, 6))
+                    colors = ['red' if df_predictions.iloc[i]['誤差'] == df_predictions['誤差'].min() and actual_salary else 'steelblue' for i in range(len(df_predictions))]
+                    ax.barh(range(len(df_predictions)), df_predictions['予測年俸'], alpha=0.7, color=colors)
+                    if actual_salary:
+                        ax.axvline(x=actual_salary/1e6, color='green', linestyle='--', linewidth=2, label='実際の年俸')
+                    ax.set_yticks(range(len(df_predictions)))
+                    ax.set_yticklabels(df_predictions['モデル'])
+                    ax.set_xlabel('予測年俸（百万円）')
+                    ax.set_title(f'{selected_player} - モデル別予測')
+                    ax.legend()
+                    ax.grid(alpha=0.3)
+                    st.pyplot(fig)
+                    plt.close(fig)
+        else:
+            st.info("⬆️ まず「レンジ別モデルを訓練」ボタンを押してください")
 
 else:
     # ファイル未アップロード時
@@ -2154,6 +2300,7 @@ st.markdown("*NPB選手年俸予測システム - made by Sato&Kurokawa - Powere
 # Streamlitアプリを再起動するか、以下のコマンドを実行
 st.cache_data.clear()
 st.cache_resource.clear()
+
 
 
 
