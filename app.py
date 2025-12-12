@@ -2286,7 +2286,49 @@ if data_loaded:
                     
                     st.success("✅ 予測完了！")
                     
-                    通常モデル予測
+                    # メトリクス表示（最も正確だったモデルを強調）
+                    if best_model_info and actual_salary:
+                        # 最良モデルを大きく表示
+                        error_rate = (best_error / actual_salary) * 100
+                        st.markdown(f"""
+                        <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                                    padding: 25px; border-radius: 15px; text-align: center; margin-bottom: 20px;
+                                    box-shadow: 0 4px 15px rgba(0,0,0,0.2);'>
+                            <h2 style='color: white; margin: 0; font-size: 28px;'>🏆 最も正確だったモデル</h2>
+                            <p style='color: #f0f0f0; margin: 10px 0 5px 0; font-size: 18px;'>{best_model_info[0]}</p>
+                            <h1 style='color: #ffd700; margin: 10px 0; font-size: 48px; font-weight: bold;'>
+                                {best_model_info[1]/10000:.0f}万円
+                            </h1>
+                            <p style='color: #90ee90; margin: 5px 0 0 0; font-size: 20px;'>
+                                誤差: {best_error/10000:.0f}万円 ({error_rate:.1f}%)
+                            </p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        # 参考情報を小さく表示
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            if previous_salary:
+                                st.metric("前年年俸", f"{previous_salary/10000:.0f}万円")
+                            else:
+                                st.metric("前年年俸", "データなし")
+                        with col2:
+                            st.metric("実際の年俸", f"{actual_salary/10000:.0f}万円")
+                        with col3:
+                            st.metric("最良モデル予測", f"{best_model_info[1]/10000:.0f}万円", 
+                                     delta=f"誤差 {best_error/10000:.0f}万円")
+                    else:
+                        # 実際の年俸がない場合は従来通り
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            if previous_salary:
+                                st.metric("前年年俸", f"{previous_salary/10000:.0f}万円")
+                            else:
+                                st.metric("前年年俸", "データなし")
+                        with col2:
+                            st.metric("実際の年俸", "データなし")
+                        with col3:
+                            st.metric("通常モデル予測", f"{df_predictions.iloc[0]['予測年俸(万円)']:.0f}万円")
                     
                     st.markdown("---")
                     st.subheader("📊 全モデルの予測結果")
@@ -2372,14 +2414,6 @@ st.markdown("*NPB選手年俸予測システム - made by Sato&Kurokawa - Powere
 # Streamlitアプリを再起動するか、以下のコマンドを実行
 st.cache_data.clear()
 st.cache_resource.clear()
-
-
-
-
-
-
-
-
 
 
 
