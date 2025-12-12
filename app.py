@@ -511,78 +511,6 @@ def train_models(_merged_df):
     
     return best_model, best_model_name, scaler, feature_cols, results, ml_df
 
-# 年俸レンジ別モデル訓練関数
-@st.cache_resource
-def train_ranged_models(_merged_df):
-    """年俸レンジ別にモデルを訓練する（3分割）"""
-    feature_cols = ['試合', '打席', '打数', '得点', '安打', '二塁打', '三塁打', '本塁打', 
-                   '塁打', '打点', '盗塁', '盗塁刺', '四球', '死球', '三振', '併殺打', 
-                   '打率', '出塁率', '長打率', '犠打', '犠飛', 'タイトル数']
-    
-    if '年齢' in _merged_df.columns:
-        feature_cols.append('年齢')
-        ml_df = _merged_df[feature_cols + ['年俸_円', '選手名', '成績年度']].copy()
-    else:
-        ml_df = _merged_df[feature_cols + ['年俸_円', '選手名', '成績年度']].copy()
-        ml_df['年齢'] = 28
-        feature_cols.append('年齢')
-    
-    ml_df = ml_df.dropna()
-    
-    # 年俸を5分割
-    salary_ranges = {
-        '低年俸層（2000万円未満）': (0, 20_000_000),
-        '中低年俸層（2000-4000万円）': (20_000_000, 40_000_000),
-        '中年俸層（4000-7000万円）': (40_000_000, 70_000_000),
-        '中高年俸層（7000万円-1億円）': (70_000_000, 100_000_000),
-        '高年俸層（1億円-4億円）': (100_000_000, 400_000_000),
-        '超高年俸層（4億円以上）': (300_000_000, float('inf'))
-    }
-    
-    ranged_models = {}
-    
-    for range_name, (min_salary, max_salary) in salary_ranges.items():
-        range_df = ml_df[(ml_df['年俸_円'] >= min_salary) & (ml_df['年俸_円'] < max_salary)].copy()
-        
-        if len(range_df) < 10:
-            continue
-        
-        X = range_df[feature_cols]
-        y = range_df['年俸_円']
-        y_log = np.log1p(y)
-        
-        test_size = min(0.2, max(0.1, len(range_df) * 0.2 / len(range_df)))
-        X_train, X_test, y_train_log, y_test_log = train_test_split(
-            X, y_log, test_size=test_size, random_state=42
-        )
-        
-        y_test_original = np.expm1(y_test_log)
-        
-        scaler = StandardScaler()
-        X_train_scaled = scaler.fit_transform(X_train)
-        X_test_scaled = scaler.transform(X_test)
-        
-        model = RandomForestRegressor(n_estimators=100, random_state=42, max_depth=10)
-        model.fit(X_train, y_train_log)
-        y_pred_log = model.predict(X_test)
-        y_pred = np.expm1(y_pred_log)
-        
-        mae = mean_absolute_error(y_test_original, y_pred)
-        r2 = r2_score(y_test_original, y_pred)
-        
-        ranged_models[range_name] = {
-            'model': model,
-            'scaler': scaler,
-            'MAE': mae,
-            'R2': r2,
-            'min_salary': min_salary,
-            'max_salary': max_salary,
-            'n_samples': len(range_df),
-            'feature_cols': feature_cols
-        }
-    
-    return ranged_models
-
 # データ読み込みとモデル訓練
 if data_loaded:
     if not st.session_state.model_trained:
@@ -2414,6 +2342,7 @@ st.markdown("*NPB選手年俸予測システム - made by Sato&Kurokawa - Powere
 # Streamlitアプリを再起動するか、以下のコマンドを実行
 st.cache_data.clear()
 st.cache_resource.clear()
+
 
 
 
