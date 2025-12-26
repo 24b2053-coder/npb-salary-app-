@@ -311,6 +311,100 @@ def check_salary_reduction_limit(predicted_salary, previous_salary):
     else:
         return False, min_salary, reduction_rate
 
+def generate_improvement_suggestions(player_stats, model, feature_cols, scaler=None, model_name='ランダムフォレスト'):
+    """
+    選手の成績から、年俸を上げるための改善提案を生成
+    """
+    import copy
+    
+    # 元の特徴量
+    if '年齢' in player_stats.index:
+        original_features = player_stats[feature_cols].values.reshape(1, -1)
+    else:
+        features_list = player_stats[feature_cols[:-1]].values.tolist()
+        features_list.append(28)
+        original_features = np.array([features_list])
+    
+    # 元の予測
+    if model_name == '線形回帰':
+        original_pred_log = model.predict(scaler.transform(original_features))[0]
+    else:
+        original_pred_log = model.predict(original_features)[0]
+    original_salary = np.expm1(original_pred_log)
+    
+    # 各指標を10%改善した場合の影響を計算
+    improvements = []
+    
+    # 改善可能な指標（年齢とタイトル数以外）
+    improvable_features = ['打率', '出塁率', '長打率', '本塁打', '打点', '安打', '盗塁']
+    
+    for feature_name in improvable_features:
+        if feature_name in feature_cols:
+            # コピーして特定の特徴量を10%改善
+            modified_features = original_features.copy()
+            feature_idx = feature_cols.index(feature_name)
+            
+            # 打率系は+0.020、それ以外は+10%
+            if feature_name in ['打率', '出塁率', '長打率']:
+                modified_features[0, feature_idx] = min(modified_features[0, feature_idx] + 0.020, 1.0)
+                improvement_text = "+.020"
+            else:
+                modified_features[0, feature_idx] = modified_features[0, feature_idx] * 1.1
+                improvement_text = "+10%"
+            
+            # 予測
+            if model_name == '線形回帰':
+                new_pred_log = model.predict(scaler.transform(modified_features))[0]
+            else:
+                new_pred_log = model.predict(modified_features)[0]
+            new_salary = np.expm1(new_pred_log)
+            
+            # 年俸増加額
+            salary_increase = new_salary - original_salary
+            
+            improvements.append({
+                '改善項目': feature_name,
+                '改善内容': improvement_text,
+                '年俸増加': salary_increase / 10000,
+                '増加率': (salary_increase / original_salary) * 100
+            })
+    
+    # 年俸増加額でソート
+    improvements_sorted = sorted(improvements, key=lambda x: x['年俸増加'], reverse=True)
+    
+    # トップ3を抽出
+    top_3 = improvements_sorted[:3]
+    
+    # コメント生成
+    comment = f"💡 **年俸アップのための改善提案**\n\n"
+    comment += f"現在の予測年俸: **{original_salary/10000:.0f}万円**\n\n"
+    comment += "**効果が大きい改善項目 TOP3:**\n\n"
+    
+    for i, item in enumerate(top_3, 1):
+        comment += f"{i}. **{item['改善項目']}を{item['改善内容']}改善**\n"
+        comment += f"   → 年俸 **+{item['年俸増加']:.0f}万円** ({item['増加率']:.1f}%アップ)\n\n"
+    
+    # 具体的アドバイス
+    top_item = top_3[0]['改善項目']
+    if top_item == '本塁打':
+        advice = "🎯 **具体的なアドバイス**: 本塁打を増やすことが最も効果的です。パワーアップのトレーニングや、フライボール革命を意識した打撃フォームの改善を検討しましょう。"
+    elif top_item == '打点':
+        advice = "🎯 **具体的なアドバイス**: 打点を増やすことが最も効果的です。チャンスでの集中力を高め、得点圏打率の向上を目指しましょう。"
+    elif top_item in ['打率', '安打']:
+        advice = "🎯 **具体的なアドバイス**: 打率・安打を増やすことが最も効果的です。ミート力の向上や、配球の読みを深めることで打率アップを狙いましょう。"
+    elif top_item in ['出塁率']:
+        advice = "🎯 **具体的なアドバイス**: 出塁率を上げることが最も効果的です。選球眼を磨き、四球を増やすことで出塁機会を増やしましょう。"
+    elif top_item == '長打率':
+        advice = "🎯 **具体的なアドバイス**: 長打率を上げることが最も効果的です。二塁打・三塁打を増やし、攻撃の起点となるプレーを心がけましょう。"
+    elif top_item == '盗塁':
+        advice = "🎯 **具体的なアドバイス**: 盗塁を増やすことが最も効果的です。走力を活かし、スピードで相手を圧倒しましょう。"
+    else:
+        advice = f"🎯 **具体的なアドバイス**: {top_item}の向上に注力することが、年俸アップへの最短ルートです。"
+    
+    comment += advice
+    
+    return comment, improvements_sorted
+
 # タイトル
 st.title("⚾ NPB選手年俸予測システム")
 st.markdown("---")
@@ -774,6 +868,25 @@ if data_loaded:
                     
                     st.markdown("---")
                     st.subheader(f"{stats_year}年の成績")
+
+                    # 改善提案を生成
+                    st.markdown("---")
+                    suggestion_comment, improvements_detail = generate_improvement_suggestions(
+                        player_stats, 
+                        st.session_state.best_model, 
+                        st.session_state.feature_cols,
+                        st.session_state.scaler,
+                        st.session_state.best_model_name
+                    )
+                    
+                    st.markdown(suggestion_comment)
+                    
+                    # 詳細データを表示（オプション）
+                    with st.expander("📊 全項目の改善効果を見る"):
+                        df_improvements = pd.DataFrame(improvements_detail)
+                        df_improvements['年俸増加'] = df_improvements['年俸増加'].apply(lambda x: f"{x:.0f}万円")
+                        df_improvements['増加率'] = df_improvements['増加率'].apply(lambda x: f"{x:.1f}%")
+                        st.dataframe(df_improvements, use_container_width=True, hide_index=True)
                     
                     col1, col2, col3, col4, col5 = st.columns(5)
                     with col1:
@@ -2414,6 +2527,7 @@ st.markdown("*NPB選手年俸予測システム - made by Sato&Kurokawa - Powere
 # Streamlitアプリを再起動するか、以下のコマンドを実行
 st.cache_data.clear()
 st.cache_resource.clear()
+
 
 
 
